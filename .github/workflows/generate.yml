@@ -1,0 +1,52 @@
+name: Generate Reels / TikTok video
+
+on:
+  # Ruční spuštění z GitHub UI (záložka Actions)
+  workflow_dispatch:
+
+  # Spuštění přes webhook / REST API:
+  #   POST https://api.github.com/repos/<owner>/<repo>/dispatches
+  #   body: {"event_type": "generate-video"}
+  repository_dispatch:
+    types: [generate-video]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: generate-video-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  generate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout kódu
+        uses: actions/checkout@v4
+
+      - name: Nastavení Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Instalace FFmpeg a fontů
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ffmpeg fonts-noto-color-emoji fonts-noto-core
+          ffmpeg -version | head -n 1
+
+      - name: Instalace NPM závislostí
+        run: npm install --no-audit --no-fund
+
+      - name: Spuštění generátoru
+        run: node index.js
+
+      - name: Nahrání videa jako artefaktu
+        uses: actions/upload-artifact@v4
+        with:
+          name: reels-video-${{ github.run_number }}
+          path: output/
+          if-no-files-found: error
+          retention-days: 14

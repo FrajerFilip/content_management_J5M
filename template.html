@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="cs">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=1080, height=1920, initial-scale=1" />
+  <title>Reels Slide</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@500;700;900&display=swap" rel="stylesheet" />
+  <style>
+    /*
+     * Plátno 1080 x 1920 px (9:16).
+     * Bezpečné zóny pro TikTok / Instagram Reels:
+     *   - nahoře  ~260 px  (stavový řádek, záložky „Sledované / Pro vás“, název Reels)
+     *   - dole    ~480 px  (jméno účtu, popisek, hudba, ovládací lišta)
+     *   - vpravo  ~160 px  (sloupec ikon: like, komentáře, sdílení, avatar)
+     *   - vlevo   ~64 px   (okrajová rezerva)
+     * Veškerý text je umístěn výhradně uvnitř .safe-zone.
+     */
+    :root {
+      --w: 1080px;
+      --h: 1920px;
+      --safe-top: 260px;
+      --safe-bottom: 480px;
+      --safe-left: 64px;
+      --safe-right: 160px;
+      --accent: #ffd23f;
+      --accent-2: #ff5e7e;
+      --text: #ffffff;
+      --text-dim: rgba(255, 255, 255, 0.88);
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    html, body {
+      width: var(--w);
+      height: var(--h);
+      overflow: hidden;
+      background: #0d0f1a;
+      font-family: 'Inter', 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+      color: var(--text);
+      -webkit-font-smoothing: antialiased;
+    }
+
+    .canvas {
+      position: relative;
+      width: var(--w);
+      height: var(--h);
+      overflow: hidden;
+      /* záložní pozadí, pokud se obrázek nenačte */
+      background:
+        radial-gradient(1200px 900px at 20% 10%, #3a2d8f 0%, transparent 60%),
+        radial-gradient(1000px 900px at 90% 90%, #b8325a 0%, transparent 55%),
+        linear-gradient(160deg, #141833 0%, #0d0f1a 100%);
+    }
+
+    /* Obrázek na pozadí přes celé plátno */
+    .bg {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      transform: scale(1.04);
+    }
+
+    /* Ztmavení pro čitelnost textu */
+    .overlay {
+      position: absolute;
+      inset: 0;
+      background:
+        linear-gradient(180deg,
+          rgba(8, 10, 22, 0.55) 0%,
+          rgba(8, 10, 22, 0.15) 30%,
+          rgba(8, 10, 22, 0.55) 55%,
+          rgba(8, 10, 22, 0.92) 100%);
+    }
+
+    /* Bezpečná zóna – sem patří veškerý obsah */
+    .safe-zone {
+      position: absolute;
+      top: var(--safe-top);
+      bottom: var(--safe-bottom);
+      left: var(--safe-left);
+      right: var(--safe-right);
+      display: flex;
+      flex-direction: column;
+      justify-content: flex-end;
+      gap: 40px;
+    }
+
+    .tag {
+      align-self: flex-start;
+      display: inline-flex;
+      align-items: center;
+      gap: 14px;
+      padding: 14px 28px;
+      border-radius: 999px;
+      background: rgba(255, 255, 255, 0.14);
+      border: 2px solid rgba(255, 255, 255, 0.25);
+      backdrop-filter: blur(12px);
+      font-size: 30px;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+    .tag::before {
+      content: '';
+      width: 16px;
+      height: 16px;
+      border-radius: 50%;
+      background: var(--accent);
+      box-shadow: 0 0 18px var(--accent);
+    }
+
+    .heading {
+      font-size: 104px;
+      line-height: 1.04;
+      font-weight: 900;
+      letter-spacing: -0.02em;
+      text-shadow: 0 6px 30px rgba(0, 0, 0, 0.45);
+      word-wrap: break-word;
+      hyphens: auto;
+    }
+
+    .accent-bar {
+      width: 160px;
+      height: 12px;
+      border-radius: 6px;
+      background: linear-gradient(90deg, var(--accent), var(--accent-2));
+    }
+
+    .card {
+      padding: 44px 48px;
+      border-radius: 40px;
+      background: rgba(15, 18, 38, 0.62);
+      border: 2px solid rgba(255, 255, 255, 0.14);
+      backdrop-filter: blur(18px);
+      box-shadow: 0 30px 80px rgba(0, 0, 0, 0.35);
+    }
+
+    .main-text {
+      font-size: 50px;
+      line-height: 1.35;
+      font-weight: 500;
+      color: var(--text-dim);
+      word-wrap: break-word;
+      hyphens: auto;
+    }
+    .main-text strong { color: var(--accent); font-weight: 700; }
+
+    /* Vizualizace bezpečných zón – zapnout přidáním třídy .debug na <body> */
+    body.debug .safe-zone { outline: 4px dashed #00ff9c; }
+  </style>
+</head>
+<body>
+  <div class="canvas">
+    <img class="bg" src="{{IMAGE_URL}}" alt="" onerror="this.remove()" />
+    <div class="overlay"></div>
+
+    <main class="safe-zone">
+      <div class="tag">Věděli jste?</div>
+      <h1 class="heading">{{HEADING}}</h1>
+      <div class="accent-bar"></div>
+      <div class="card">
+        <p class="main-text">{{MAIN_TEXT}}</p>
+      </div>
+    </main>
+  </div>
+</body>
+</html>
