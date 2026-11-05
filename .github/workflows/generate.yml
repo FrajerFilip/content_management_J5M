@@ -29,6 +29,7 @@ on:
     paths:
       - "web/**"
       - "template.html"
+      - "presets.json"
       - "index.js"
       - "package.json"
       - "package-lock.json"
@@ -84,6 +85,7 @@ jobs:
           mkdir -p _site/videos
           cp -r web/. _site/
           cp template.html _site/template.html
+          cp presets.json _site/presets.json
           cp output/reels-output.mp4 _site/videos/reels-output.mp4
           cp output/latest.json _site/latest.json
 

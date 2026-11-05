@@ -3,31 +3,36 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=1080, height=1920, initial-scale=1" />
-  <title>Reels Slide</title>
+  <title>Ještě 5 minut – snímek</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@500;700;900&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet" />
   <style>
     /*
-     * Plátno 1080 x 1920 px (9:16).
+     * Plátno 1080 x 1920 px (9:16), vizuál e-booku „Ještě 5 minut“.
      * Bezpečné zóny pro TikTok / Instagram Reels:
      *   - nahoře  ~260 px  (stavový řádek, záložky „Sledované / Pro vás“, název Reels)
      *   - dole    ~480 px  (jméno účtu, popisek, hudba, ovládací lišta)
      *   - vpravo  ~160 px  (sloupec ikon: like, komentáře, sdílení, avatar)
      *   - vlevo   ~64 px   (okrajová rezerva)
      * Veškerý text je umístěn výhradně uvnitř .safe-zone.
+     *
+     * Placeholdery (ve dvojitých složených závorkách): HEADING, MAIN_TEXT, IMAGE_URL, TAG, TYPE (hook | info | cta)
+     * V textech lze použít <strong> (oranžové zvýraznění) a <s> (přeškrtnutí jako na obálce).
      */
     :root {
       --w: 1080px;
       --h: 1920px;
       --safe-top: 260px;
       --safe-bottom: 480px;
-      --safe-left: 64px;
+      --safe-left: 72px;
       --safe-right: 160px;
-      --accent: #ffd23f;
-      --accent-2: #ff5e7e;
+      --navy: #15213d;
+      --navy-2: #1c2a4a;
+      --orange: #ff6b2c;
       --text: #ffffff;
-      --text-dim: rgba(255, 255, 255, 0.88);
+      --text-dim: #c9cfdc;
+      --strike: #9aa3b5;
     }
 
     * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -36,7 +41,7 @@
       width: var(--w);
       height: var(--h);
       overflow: hidden;
-      background: #0d0f1a;
+      background: var(--navy);
       font-family: 'Inter', 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
       color: var(--text);
       -webkit-font-smoothing: antialiased;
@@ -47,36 +52,40 @@
       width: var(--w);
       height: var(--h);
       overflow: hidden;
-      /* záložní pozadí, pokud se obrázek nenačte */
       background:
-        radial-gradient(1200px 900px at 20% 10%, #3a2d8f 0%, transparent 60%),
-        radial-gradient(1000px 900px at 90% 90%, #b8325a 0%, transparent 55%),
-        linear-gradient(160deg, #141833 0%, #0d0f1a 100%);
+        radial-gradient(900px 700px at 85% 30%, rgba(255, 107, 44, 0.10) 0%, transparent 70%),
+        linear-gradient(180deg, var(--navy-2) 0%, var(--navy) 100%);
     }
 
-    /* Obrázek na pozadí přes celé plátno */
+    /* Volitelná fotka na pozadí, silně ztmavená do brandové modré */
     .bg {
       position: absolute;
       inset: 0;
       width: 100%;
       height: 100%;
       object-fit: cover;
-      transform: scale(1.04);
+      opacity: 0.35;
+      filter: grayscale(0.4);
     }
-
-    /* Ztmavení pro čitelnost textu */
-    .overlay {
+    .bg + .tint {
       position: absolute;
       inset: 0;
-      background:
-        linear-gradient(180deg,
-          rgba(8, 10, 22, 0.55) 0%,
-          rgba(8, 10, 22, 0.15) 30%,
-          rgba(8, 10, 22, 0.55) 55%,
-          rgba(8, 10, 22, 0.92) 100%);
+      background: linear-gradient(180deg, rgba(21, 33, 61, 0.55) 0%, rgba(21, 33, 61, 0.9) 70%, var(--navy) 100%);
     }
 
-    /* Bezpečná zóna – sem patří veškerý obsah */
+    /* Velká pětka v pozadí – motiv z obálky e-booku */
+    .big-five {
+      position: absolute;
+      right: -170px;
+      top: 330px;
+      font-size: 1500px;
+      line-height: 1;
+      font-weight: 900;
+      letter-spacing: -0.06em;
+      color: rgba(255, 107, 44, 0.09);
+      user-select: none;
+    }
+
     .safe-zone {
       position: absolute;
       top: var(--safe-top);
@@ -85,71 +94,145 @@
       right: var(--safe-right);
       display: flex;
       flex-direction: column;
-      justify-content: flex-end;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 18px;
+      font-size: 40px;
+      font-weight: 700;
+      letter-spacing: -0.01em;
+    }
+    .brand svg { width: 58px; height: 72px; flex: none; }
+
+    .content {
+      margin-top: auto;
+      display: flex;
+      flex-direction: column;
       gap: 40px;
     }
 
     .tag {
       align-self: flex-start;
-      display: inline-flex;
-      align-items: center;
-      gap: 14px;
-      padding: 14px 28px;
-      border-radius: 999px;
-      background: rgba(255, 255, 255, 0.14);
-      border: 2px solid rgba(255, 255, 255, 0.25);
-      backdrop-filter: blur(12px);
-      font-size: 30px;
+      font-size: 32px;
       font-weight: 700;
-      letter-spacing: 0.08em;
-      text-transform: uppercase;
+      color: var(--orange);
+      letter-spacing: 0.01em;
     }
-    .tag::before {
-      content: '';
-      width: 16px;
-      height: 16px;
-      border-radius: 50%;
-      background: var(--accent);
-      box-shadow: 0 0 18px var(--accent);
-    }
+    .tag:empty { display: none; }
 
     .heading {
-      font-size: 104px;
-      line-height: 1.04;
+      font-size: 108px;
+      line-height: 1.02;
       font-weight: 900;
-      letter-spacing: -0.02em;
-      text-shadow: 0 6px 30px rgba(0, 0, 0, 0.45);
+      letter-spacing: -0.035em;
       word-wrap: break-word;
-      hyphens: auto;
+      hyphens: manual;
     }
 
-    .accent-bar {
-      width: 160px;
-      height: 12px;
-      border-radius: 6px;
-      background: linear-gradient(90deg, var(--accent), var(--accent-2));
-    }
-
-    .card {
-      padding: 44px 48px;
-      border-radius: 40px;
-      background: rgba(15, 18, 38, 0.62);
-      border: 2px solid rgba(255, 255, 255, 0.14);
-      backdrop-filter: blur(18px);
-      box-shadow: 0 30px 80px rgba(0, 0, 0, 0.35);
+    strong { color: var(--orange); font-weight: inherit; }
+    .main-text strong { font-weight: 700; }
+    s {
+      color: var(--strike);
+      text-decoration: line-through;
+      text-decoration-color: var(--orange);
+      text-decoration-thickness: 0.09em;
     }
 
     .main-text {
       font-size: 50px;
-      line-height: 1.35;
+      line-height: 1.38;
       font-weight: 500;
       color: var(--text-dim);
-      word-wrap: break-word;
-      hyphens: auto;
+      padding-left: 34px;
+      border-left: 8px solid var(--orange);
     }
-    .main-text strong { color: var(--accent); font-weight: 700; }
+    .main-text:empty { display: none; }
 
-    /* Vizualizace bezpečných zón – zapnout přidáním třídy „debug“ na element body */
+    /* Fakta o e-booku (jen CTA) */
+    .facts {
+      display: none;
+      flex-wrap: wrap;
+      gap: 14px 34px;
+      font-size: 32px;
+      font-weight: 500;
+      color: var(--text-dim);
+    }
+    .facts span { display: inline-flex; align-items: center; gap: 14px; }
+    .facts span::before {
+      content: '';
+      width: 14px;
+      height: 14px;
+      border-radius: 50%;
+      background: var(--orange);
+    }
+
+    /* Mockup obálky e-booku (jen CTA) */
+    .cover {
+      display: none;
+      position: relative;
+      align-self: flex-start;
+      width: 330px;
+      height: 466px;
+      padding: 34px 30px;
+      border-radius: 14px 22px 22px 14px;
+      background: var(--navy);
+      border: 2px solid rgba(255, 255, 255, 0.12);
+      box-shadow: -14px 0 0 -6px #0e172c, 0 40px 80px rgba(0, 0, 0, 0.45);
+      transform: rotate(-4deg);
+      overflow: hidden;
+    }
+    .cover .c-brand { display: flex; align-items: center; gap: 8px; font-size: 16px; font-weight: 700; }
+    .cover .c-brand svg { width: 18px; height: 22px; }
+    .cover .c-five {
+      position: absolute;
+      right: -70px;
+      top: 70px;
+      font-size: 520px;
+      font-weight: 900;
+      line-height: 1;
+      color: rgba(255, 107, 44, 0.16);
+    }
+    .cover .c-title {
+      position: relative;
+      margin-top: 70px;
+      font-size: 62px;
+      line-height: 0.98;
+      font-weight: 900;
+      letter-spacing: -0.04em;
+    }
+    .cover .c-title s { color: var(--strike); }
+    .cover .c-title strong { color: var(--orange); }
+    .cover .c-sub {
+      position: relative;
+      margin-top: 22px;
+      font-size: 19px;
+      line-height: 1.25;
+      font-weight: 700;
+    }
+
+    /* Varianta CTA – obálka vlevo, nadpis vpravo */
+    body.cta .content {
+      display: grid;
+      grid-template-columns: 290px minmax(0, 1fr);
+      column-gap: 48px;
+      row-gap: 34px;
+      align-items: end;
+    }
+    body.cta .cover { display: block; grid-column: 1; grid-row: 1 / span 2; width: 290px; height: 410px; }
+    body.cta .cover .c-title { margin-top: 56px; font-size: 54px; }
+    body.cta .cover .c-sub { font-size: 17px; }
+    body.cta .tag { grid-column: 2; grid-row: 1; }
+    body.cta .heading { grid-column: 2; grid-row: 2; font-size: 104px; }
+    body.cta .main-text, body.cta .facts { grid-column: 1 / -1; }
+    body.cta .facts { display: flex; }
+    body.cta .big-five { opacity: 0.6; }
+
+    /* Varianta HOOK – větší nadpis */
+    body.hook .heading { font-size: 116px; }
+
+    /* Vizualizace bezpečných zón – zapnout třídou „debug“ na elementu body */
     body.debug .safe-zone {
       outline: 10px dashed #00ff9c;
       background: rgba(0, 255, 156, 0.08);
@@ -159,7 +242,6 @@
       position: absolute;
       inset: 0;
       pointer-events: none;
-      /* červeně = oblasti překryté UI aplikací */
       box-shadow:
         inset 0 var(--safe-top) 0 rgba(255, 40, 80, 0.28),
         inset 0 calc(-1 * var(--safe-bottom)) 0 rgba(255, 40, 80, 0.28),
@@ -167,17 +249,43 @@
     }
   </style>
 </head>
-<body>
+<body class="{{TYPE}}">
   <div class="canvas">
     <img class="bg" src="{{IMAGE_URL}}" alt="" onerror="this.remove()" />
-    <div class="overlay"></div>
+    <div class="tint"></div>
+    <div class="big-five" aria-hidden="true">5</div>
 
     <main class="safe-zone">
-      <div class="tag">Věděli jste?</div>
-      <h1 class="heading">{{HEADING}}</h1>
-      <div class="accent-bar"></div>
-      <div class="card">
+      <div class="brand">
+        <svg viewBox="0 0 58 72" aria-hidden="true">
+          <g fill="none" stroke="#ff6b2c" stroke-width="6" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M46 6H14l-3 24" />
+            <path d="M11 30a22 22 0 1 1 -2 30" />
+            <path d="M29 38v12l8 5" stroke-width="5" />
+          </g>
+        </svg>
+        Ještě 5 minut
+      </div>
+
+      <div class="content">
+        <div class="cover" aria-hidden="true">
+          <div class="c-five">5</div>
+          <div class="c-brand">
+            <svg viewBox="0 0 58 72"><g fill="none" stroke="#ff6b2c" stroke-width="7" stroke-linecap="round" stroke-linejoin="round"><path d="M46 6H14l-3 24" /><path d="M11 30a22 22 0 1 1 -2 30" /></g></svg>
+            Ještě 5 minut
+          </div>
+          <div class="c-title">Začnu<br /><s>zítra.</s><br /><strong>teď.</strong></div>
+          <div class="c-sub">Přestaň se učit noc před zkouškou.</div>
+        </div>
+
+        <div class="tag">{{TAG}}</div>
+        <h1 class="heading">{{HEADING}}</h1>
         <p class="main-text">{{MAIN_TEXT}}</p>
+        <div class="facts">
+          <span>8 kapitol</span>
+          <span>5 minut čtení</span>
+          <span>1 úkol na konci</span>
+        </div>
       </div>
     </main>
   </div>

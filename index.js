@@ -31,34 +31,10 @@ const OUTPUT_FILE = path.join(OUTPUT_DIR, 'reels-output.mp4');
 if (process.env.FFMPEG_PATH) ffmpeg.setFfmpegPath(process.env.FFMPEG_PATH);
 
 // ---------------------------------------------------------------------------
-// Testovací data – 4 navazující snímky
+// Testovací data – výchozí scénář e-booku „Ještě 5 minut“ (presets.json)
 // ---------------------------------------------------------------------------
-const DEFAULT_SLIDES = [
-  {
-    type: 'hook',
-    heading: 'Pijete málo vody? 💧',
-    mainText: 'Už <strong>2 % dehydratace</strong> sníží vaši koncentraci. Tohle musíte vědět!',
-    imageUrl: 'https://images.unsplash.com/photo-1548839140-29a749e1cf4d?w=1080&h=1920&fit=crop&q=80',
-  },
-  {
-    type: 'info',
-    heading: 'Mozek je ze 75 % voda',
-    mainText: 'Při nedostatku tekutin se zpomaluje reakční doba a roste únava. Mozek to pozná <strong>dřív než žízeň</strong>.',
-    imageUrl: 'https://images.unsplash.com/photo-1559757175-5700dde675bc?w=1080&h=1920&fit=crop&q=80',
-  },
-  {
-    type: 'info',
-    heading: 'Kolik vody denně?',
-    mainText: 'Orientačně <strong>30–35 ml na 1 kg</strong> tělesné váhy. Při sportu a v horku ještě víc.',
-    imageUrl: 'https://images.unsplash.com/photo-1523362628745-0c100150b504?w=1080&h=1920&fit=crop&q=80',
-  },
-  {
-    type: 'cta',
-    heading: 'Sleduj pro další tipy! 🚀',
-    mainText: 'Ulož si video, ať nezapomeneš, a <strong>pošli ho kamarádovi</strong>, který pořád zapomíná pít.',
-    imageUrl: 'https://images.unsplash.com/photo-1490645935967-10de6ba17061?w=1080&h=1920&fit=crop&q=80',
-  },
-];
+const PRESETS = JSON.parse(fs.readFileSync(path.join(ROOT, 'presets.json'), 'utf8'));
+const DEFAULT_SLIDES = PRESETS.scenarios[0].slides;
 
 // ---------------------------------------------------------------------------
 // Načtení dat snímků
@@ -68,12 +44,13 @@ const DEFAULT_SLIDES = [
 const SLIDE_TYPES = ['hook', 'info', 'info', 'cta'];
 const MAX_HEADING = 120;
 const MAX_TEXT = 400;
+const MAX_TAG = 60;
 
 function loadSlides() {
   const raw = (process.env.SLIDES_JSON || '').trim();
   if (!raw || raw === 'null' || raw === '""') {
-    console.log('ℹ️  SLIDES_JSON není zadán – používám testovací data.');
-    return DEFAULT_SLIDES;
+    console.log(`ℹ️  SLIDES_JSON není zadán – používám scénář „${PRESETS.scenarios[0].name}“.`);
+    return DEFAULT_SLIDES.map((s, i) => ({ ...s, type: SLIDE_TYPES[i] }));
   }
 
   let data;
@@ -90,11 +67,14 @@ function loadSlides() {
     const heading = String(s?.heading ?? '').trim();
     const mainText = String(s?.mainText ?? '').trim();
     const imageUrl = String(s?.imageUrl ?? '').trim();
+    const tag = String(s?.tag ?? '').trim();
     if (!heading) throw new Error(`Snímek ${i + 1}: chybí nadpis.`);
     if (heading.length > MAX_HEADING) throw new Error(`Snímek ${i + 1}: nadpis je delší než ${MAX_HEADING} znaků.`);
+    if (tag.length > MAX_TAG) throw new Error(`Snímek ${i + 1}: štítek je delší než ${MAX_TAG} znaků.`);
     if (mainText.length > MAX_TEXT) throw new Error(`Snímek ${i + 1}: text je delší než ${MAX_TEXT} znaků.`);
     return {
       type: SLIDE_TYPES[i],
+      tag,
       heading,
       mainText,
       // povoleny jen http(s) adresy, jinak se použije záložní pozadí šablony
@@ -107,7 +87,7 @@ function loadSlides() {
 // Pomocné funkce
 // ---------------------------------------------------------------------------
 
-/** Escapuje HTML, ale ponechá povolené tagy <strong>, <em>, <br>. */
+/** Escapuje HTML, ale ponechá povolené tagy <strong>, <em>, <s>, <br>. */
 function sanitize(text) {
   const escaped = String(text ?? '')
     .replace(/&/g, '&amp;')
@@ -115,8 +95,11 @@ function sanitize(text) {
     .replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;');
   return escaped
-    .replace(/&lt;(\/?)(strong|em|br)\s*\/?&gt;/gi, '<$1$2>')
-    .replace(/\n/g, '<br>');
+    .replace(/&lt;(\/?)(strong|em|s|br)\s*\/?&gt;/gi, '<$1$2>')
+    .replace(/\n/g, '<br>')
+    // česká typografie: jednopísmenné předložky/spojky nezůstanou na konci řádku
+    .replace(/(^|[\s>(„])([kvszouaiKVSZOUAI]) +/g, '$1$2\u00A0')
+    .replace(/(^|[\s>(„])([kvszouaiKVSZOUAI]) +/g, '$1$2\u00A0');
 }
 
 function escapeAttr(value) {
@@ -127,7 +110,9 @@ function renderTemplate(template, slide) {
   return template
     .replace(/{{HEADING}}/g, sanitize(slide.heading))
     .replace(/{{MAIN_TEXT}}/g, sanitize(slide.mainText))
-    .replace(/{{IMAGE_URL}}/g, escapeAttr(slide.imageUrl));
+    .replace(/{{IMAGE_URL}}/g, escapeAttr(slide.imageUrl))
+    .replace(/{{TAG}}/g, sanitize(slide.tag))
+    .replace(/{{TYPE}}/g, escapeAttr(slide.type));
 }
 
 function prepareDir(dir, clean = false) {

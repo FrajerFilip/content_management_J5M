@@ -6,30 +6,11 @@
 const WORKFLOW_FILE = 'generate.yml';
 const FALLBACK_REPO = { owner: 'FrajerFilip', repo: 'content_management_J5M' };
 const LABELS = ['Hook', 'Info 1', 'Info 2', 'Výzva k akci'];
-const STORAGE = { draft: 'reels.draft', conn: 'reels.conn', token: 'reels.token' };
+const TYPES = ['hook', 'info', 'info', 'cta'];
+const STORAGE = { draft: 'reels.draft.v2', conn: 'reels.conn', token: 'reels.token' };
 
-const DEFAULT_SLIDES = [
-  {
-    heading: 'Pijete málo vody? 💧',
-    mainText: 'Už <strong>2 % dehydratace</strong> sníží vaši koncentraci. Tohle musíte vědět!',
-    imageUrl: 'https://images.unsplash.com/photo-1548839140-29a749e1cf4d?w=1080&h=1920&fit=crop&q=80',
-  },
-  {
-    heading: 'Mozek je ze 75 % voda',
-    mainText: 'Při nedostatku tekutin se zpomaluje reakční doba a roste únava. Mozek to pozná <strong>dřív než žízeň</strong>.',
-    imageUrl: 'https://images.unsplash.com/photo-1559757175-5700dde675bc?w=1080&h=1920&fit=crop&q=80',
-  },
-  {
-    heading: 'Kolik vody denně?',
-    mainText: 'Orientačně <strong>30–35 ml na 1 kg</strong> tělesné váhy. Při sportu a v horku ještě víc.',
-    imageUrl: 'https://images.unsplash.com/photo-1523362628745-0c100150b504?w=1080&h=1920&fit=crop&q=80',
-  },
-  {
-    heading: 'Sleduj pro další tipy! 🚀',
-    mainText: 'Ulož si video, ať nezapomeneš, a <strong>pošli ho kamarádovi</strong>, který pořád zapomíná pít.',
-    imageUrl: 'https://images.unsplash.com/photo-1490645935967-10de6ba17061?w=1080&h=1920&fit=crop&q=80',
-  },
-];
+let PRESETS = null; // načte se z presets.json
+const defaultSlides = () => structuredClone(PRESETS.scenarios[0].slides);
 
 const $ = (id) => document.getElementById(id);
 
@@ -44,7 +25,7 @@ const store = {
 // Šablona – stejná logika dosazení jako v index.js
 // ---------------------------------------------------------------------------
 let template = '';
-let slides = loadDraft();
+let slides = [];
 
 function sanitize(text) {
   return String(text ?? '')
@@ -52,20 +33,21 @@ function sanitize(text) {
     .replace(/</g, '&lt;')
     .replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;')
-    .replace(/&lt;(\/?)(strong|em|br)\s*\/?&gt;/gi, '<$1$2>')
-    .replace(/\n/g, '<br>');
+    .replace(/&lt;(\/?)(strong|em|s|br)\s*\/?&gt;/gi, '<$1$2>')
+    .replace(/\n/g, '<br>')
+    // česká typografie: jednopísmenné předložky/spojky nezůstanou na konci řádku
+    .replace(/(^|[\s>(„])([kvszouaiKVSZOUAI]) +/g, '$1$2\u00A0')
+    .replace(/(^|[\s>(„])([kvszouaiKVSZOUAI]) +/g, '$1$2\u00A0');
 }
 
-function renderTemplate(slide, debug) {
+function renderTemplate(slide, i, debug) {
   const url = /^https?:\/\//i.test(slide.imageUrl || '') ? slide.imageUrl : '';
   let html = template
     .replace(/{{HEADING}}/g, sanitize(slide.heading))
     .replace(/{{MAIN_TEXT}}/g, sanitize(slide.mainText))
-    .replace(/{{IMAGE_URL}}/g, url.replace(/&/g, '&amp;').replace(/"/g, '&quot;'));
-  if (debug) {
-    const i = html.lastIndexOf('<body>'); // poslední výskyt = skutečná značka (ne komentář v CSS)
-    if (i !== -1) html = `${html.slice(0, i)}<body class="debug">${html.slice(i + 6)}`;
-  }
+    .replace(/{{IMAGE_URL}}/g, url.replace(/&/g, '&amp;').replace(/"/g, '&quot;'))
+    .replace(/{{TAG}}/g, sanitize(slide.tag))
+    .replace(/{{TYPE}}/g, TYPES[i] + (debug ? ' debug' : ''));
   return html;
 }
 
@@ -74,7 +56,7 @@ function loadDraft() {
     const d = JSON.parse(store.get(STORAGE.draft));
     if (Array.isArray(d) && d.length === 4) return d;
   } catch { /* ignore */ }
-  return structuredClone(DEFAULT_SLIDES);
+  return defaultSlides();
 }
 
 // ---------------------------------------------------------------------------
@@ -98,6 +80,7 @@ function buildEditor() {
       input.addEventListener('input', () => {
         slides[i][field] = input.value;
         store.set(STORAGE.draft, JSON.stringify(slides));
+        $('scenario').value = '';
         schedulePreview(i);
       });
     });
@@ -111,7 +94,7 @@ function buildEditor() {
 function updatePreview(i) {
   if (!template) return;
   const iframe = $('slides').children[i]?.querySelector('iframe');
-  if (iframe) iframe.srcdoc = renderTemplate(slides[i], $('safeZones').checked);
+  if (iframe) iframe.srcdoc = renderTemplate(slides[i], i, $('safeZones').checked);
 }
 
 function schedulePreview(i) {
@@ -255,7 +238,8 @@ async function generate() {
   try {
     setStatus('Spouštím workflow…');
     const repoInfo = await gh(base);
-    const payload = slides.map(({ heading, mainText, imageUrl }) => ({
+    const payload = slides.map(({ tag, heading, mainText, imageUrl }) => ({
+      tag: (tag || '').trim(),
       heading: heading.trim(),
       mainText: (mainText || '').trim(),
       imageUrl: (imageUrl || '').trim(),
@@ -357,6 +341,38 @@ async function loadLatest(expectedRequestId) {
 }
 
 // ---------------------------------------------------------------------------
+// Scénáře a informace o produktu
+// ---------------------------------------------------------------------------
+function renderScenarios() {
+  const sel = $('scenario');
+  sel.innerHTML = '<option value="">— vlastní úpravy —</option>' +
+    PRESETS.scenarios.map((sc) => `<option value="${sc.id}">${sanitize(sc.name)}</option>`).join('');
+  sel.value = store.get(STORAGE.draft) ? '' : PRESETS.scenarios[0].id;
+}
+
+function loadScenario(id) {
+  const sc = PRESETS.scenarios.find((x) => x.id === id);
+  if (!sc) return;
+  slides = structuredClone(sc.slides);
+  store.del(STORAGE.draft);
+  $('scenario').value = id;
+  buildEditor();
+}
+
+function renderProduct() {
+  const p = PRESETS.product;
+  if (!p) return;
+  $('productName').textContent = p.name;
+  $('productClaim').innerHTML = sanitize(p.claim);
+  $('productSubtitle').textContent = p.subtitle;
+  $('productAudience').textContent = p.audience;
+  $('productFacts').innerHTML = p.facts.map((f) => `<li>${sanitize(f)}</li>`).join('');
+  $('productChapters').innerHTML = p.chapters
+    .map((c, i) => `<li><span>${String(i + 1).padStart(2, '0')}</span>${sanitize(c)}</li>`)
+    .join('');
+}
+
+// ---------------------------------------------------------------------------
 // Start
 // ---------------------------------------------------------------------------
 async function init() {
@@ -365,11 +381,8 @@ async function init() {
   $('settingsBtn').addEventListener('click', () => openSettings($('settings').hidden));
   ['owner', 'repo', 'token', 'remember'].forEach((id) => $(id).addEventListener('change', saveConnection));
   $('safeZones').addEventListener('change', () => slides.forEach((_, i) => updatePreview(i)));
-  $('resetBtn').addEventListener('click', () => {
-    slides = structuredClone(DEFAULT_SLIDES);
-    store.del(STORAGE.draft);
-    buildEditor();
-  });
+  $('scenario').addEventListener('change', () => loadScenario($('scenario').value));
+  $('resetBtn').addEventListener('click', () => loadScenario($('scenario').value || PRESETS.scenarios[0].id));
   $('generateBtn').addEventListener('click', generate);
   $('testBtn').addEventListener('click', async () => {
     const out = $('testResult');
@@ -390,10 +403,16 @@ async function init() {
   if (!conn().token) openSettings(true);
 
   try {
-    template = await (await fetch('template.html')).text();
+    const [tplRes, presetRes] = await Promise.all([fetch('template.html'), fetch('presets.json')]);
+    template = await tplRes.text();
+    PRESETS = await presetRes.json();
   } catch {
-    template = '<body style="background:#222;color:#fff;font:40px sans-serif;padding:60px">Šablona se nenačetla</body>';
+    template = '<body style="background:#15213d;color:#fff;font:40px sans-serif;padding:60px">Šablona se nenačetla</body>';
+    PRESETS = { product: null, scenarios: [{ id: 'empty', name: 'Prázdný', slides: TYPES.map(() => ({ tag: '', heading: '', mainText: '', imageUrl: '' })) }] };
   }
+  renderProduct();
+  renderScenarios();
+  slides = loadDraft();
   buildEditor();
   loadLatest();
 }

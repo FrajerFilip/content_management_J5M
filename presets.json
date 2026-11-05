@@ -1,0 +1,202 @@
+{
+  "product": {
+    "name": "Ještě 5 minut",
+    "type": "E-book",
+    "claim": "Začnu <s>zítra.</s> <strong>teď.</strong>",
+    "subtitle": "Přestaň se učit noc před zkouškou.",
+    "audience": "E-book pro vysokoškoláky, kteří učení a bakalářku odkládají na poslední chvíli.",
+    "facts": ["8 kapitol", "každá na 5 minut čtení", "každá končí jedním úkolem"],
+    "chapters": [
+      "Proč odkládáme",
+      "Pravidlo pěti minut",
+      "Mobil",
+      "Zkouškové",
+      "Bakalářská práce",
+      "Perfekcionismus",
+      "Když to nevyjde",
+      "Tvůj plán"
+    ]
+  },
+  "scenarios": [
+    {
+      "id": "zacnu-ted",
+      "name": "Začnu teď (obecné představení)",
+      "slides": [
+        {
+          "tag": "Pro vysokoškoláky",
+          "heading": "Zase se učíš noc před zkouškou?",
+          "mainText": "Víš, co máš dělat, a stejně to odkládáš. <strong>Není to lenost.</strong>",
+          "imageUrl": ""
+        },
+        {
+          "tag": "Kapitola 01 · Proč odkládáme",
+          "heading": "Není to problém s časem, ale s pocitem",
+          "mainText": "Úkol vyvolá nejistotu nebo strach z chyby. Mozek ten pocit chce vypnout a <strong>mobil nabídne úlevu za dvě sekundy</strong>.",
+          "imageUrl": ""
+        },
+        {
+          "tag": "Kapitola 02 · Pravidlo pěti minut",
+          "heading": "Pracuj 5 minut. Pak smíš přestat.",
+          "mainText": "Pět minut je tak málo, že se těžko hledá výmluva. <strong>Největší odpor cítíš před začátkem</strong>, ne během práce.",
+          "imageUrl": ""
+        },
+        {
+          "tag": "E-book",
+          "heading": "Začnu <s>zítra.</s> <strong>teď.</strong>",
+          "mainText": "E-book pro vysokoškoláky, kteří odkládají na poslední chvíli. <strong>Odkaz najdeš v biu.</strong>",
+          "imageUrl": ""
+        }
+      ]
+    },
+    {
+      "id": "mobil",
+      "name": "Mobil (kapitola 3)",
+      "slides": [
+        {
+          "tag": "Pro vysokoškoláky",
+          "heading": "Otevřeš skripta a za 3 minuty jsi na mobilu?",
+          "mainText": "Silou vůle to neporazíš. <strong>Vyhrává vzdálenost.</strong>",
+          "imageUrl": ""
+        },
+        {
+          "tag": "Kapitola 03 · Mobil",
+          "heading": "Co je daleko, to se nedělá",
+          "mainText": "Při učení dej telefon <strong>do jiné místnosti</strong>. Ten malý odpor, zvednout se a dojít pro něj, většinou stačí.",
+          "imageUrl": ""
+        },
+        {
+          "tag": "Pravidlo když–pak",
+          "heading": "Rozhodni se předem",
+          "mainText": "<strong>Když</strong> sáhnu po telefonu bez důvodu, <strong>pak</strong> ho položím displejem dolů a dokončím větu.",
+          "imageUrl": ""
+        },
+        {
+          "tag": "E-book",
+          "heading": "Začnu <s>zítra.</s> <strong>teď.</strong>",
+          "mainText": "E-book pro vysokoškoláky, kteří odkládají na poslední chvíli. <strong>Odkaz najdeš v biu.</strong>",
+          "imageUrl": ""
+        }
+      ]
+    },
+    {
+      "id": "zkouskove",
+      "name": "Zkouškové (kapitola 4)",
+      "slides": [
+        {
+          "tag": "Zkouškové",
+          "heading": "Zkouška za 14 dní a ještě jsi nezačal?",
+          "mainText": "Co se naučíš za jednu noc, pamatuješ si pár dní. <strong>Tady je plán, který funguje líp.</strong>",
+          "imageUrl": ""
+        },
+        {
+          "tag": "Kapitola 04 · Zkouškové",
+          "heading": "Rozlož to a vybavuj si",
+          "mainText": "Stejná látka <strong>třikrát po hodině</strong> vydrží déle než tři hodiny v kuse. A místo čtení odpovídej zpaměti.",
+          "imageUrl": ""
+        },
+        {
+          "tag": "Když zbývají 3 dny",
+          "heading": "Třiď. Vybavuj si. Spi.",
+          "mainText": "Rozděl okruhy na umím / trochu / vůbec. Začni tím, co „trochu“ umíš. A <strong>jdi spát</strong>, spánek ukládá naučené.",
+          "imageUrl": ""
+        },
+        {
+          "tag": "E-book",
+          "heading": "Začnu <s>zítra.</s> <strong>teď.</strong>",
+          "mainText": "E-book pro vysokoškoláky, kteří odkládají na poslední chvíli. <strong>Odkaz najdeš v biu.</strong>",
+          "imageUrl": ""
+        }
+      ]
+    },
+    {
+      "id": "bakalarka",
+      "name": "Bakalářka (kapitola 5)",
+      "slides": [
+        {
+          "tag": "Bakalářská práce",
+          "heading": "Bakalářka je pořád „až po zkouškovém“?",
+          "mainText": "Je velká, termín je daleko a nikdo tě nehlídá. <strong>Ideální úkol na odkládání.</strong>",
+          "imageUrl": ""
+        },
+        {
+          "tag": "Kapitola 05 · Bakalářka",
+          "heading": "Začni osnovou, ne textem",
+          "mainText": "Prázdná stránka děsí. Osnova ne. Napiš nadpisy kapitol a pod každý <strong>dvě tři odrážky</strong>.",
+          "imageUrl": ""
+        },
+        {
+          "tag": "Krátce, ale často",
+          "heading": "25 minut denně > celý víkend",
+          "mainText": "Každý pracovní den <strong>jeden blok na bakalářce</strong>. Za semestr z toho jsou desítky hodin.",
+          "imageUrl": ""
+        },
+        {
+          "tag": "E-book",
+          "heading": "Začnu <s>zítra.</s> <strong>teď.</strong>",
+          "mainText": "E-book pro vysokoškoláky, kteří odkládají na poslední chvíli. <strong>Odkaz najdeš v biu.</strong>",
+          "imageUrl": ""
+        }
+      ]
+    },
+    {
+      "id": "perfekcionismus",
+      "name": "Perfekcionismus (kapitola 6)",
+      "slides": [
+        {
+          "tag": "Perfekcionismus",
+          "heading": "Musí to být dokonalé? Proto to ještě nemáš.",
+          "mainText": "Nejjistější způsob, jak neudělat chybu, je <strong>nedělat nic</strong>.",
+          "imageUrl": ""
+        },
+        {
+          "tag": "Kapitola 06 · Perfekcionismus",
+          "heading": "Dost dobré je cíl, ne kompromis",
+          "mainText": "Předem si řekni, <strong>co musí výsledek splňovat</strong>, jaký výsledek ti stačí a kolik času tomu dáš.",
+          "imageUrl": ""
+        },
+        {
+          "tag": "Psaní a úpravy nikdy najednou",
+          "heading": "Hotové se dá vylepšit. Nezačaté ne.",
+          "mainText": "Když píšeš, nepiluj formulace. <strong>První verze je pro tebe</strong>, ne pro hodnotitele.",
+          "imageUrl": ""
+        },
+        {
+          "tag": "E-book",
+          "heading": "Začnu <s>zítra.</s> <strong>teď.</strong>",
+          "mainText": "E-book pro vysokoškoláky, kteří odkládají na poslední chvíli. <strong>Odkaz najdeš v biu.</strong>",
+          "imageUrl": ""
+        }
+      ]
+    },
+    {
+      "id": "kdyz-to-nevyjde",
+      "name": "Když to nevyjde (kapitola 7)",
+      "slides": [
+        {
+          "tag": "Pro vysokoškoláky",
+          "heading": "Vynechal jsi tři dny a chceš to vzdát?",
+          "mainText": "Jeden vynechaný den nic nezkazí. Zkazí to až myšlenka <strong>„stejně je to jedno“</strong>.",
+          "imageUrl": ""
+        },
+        {
+          "tag": "Kapitola 07 · Tři kroky návratu",
+          "heading": "Neodsuzuj. Zmenši. Naplánuj.",
+          "mainText": "Udělej <strong>dvouminutovou verzi</strong>: otevři úkol a napiš jednu větu. Pak si napiš čas a místo na zítra.",
+          "imageUrl": ""
+        },
+        {
+          "tag": "Nedoháněj",
+          "heading": "Nezáleží na tom, kolikrát vynecháš",
+          "mainText": "Snaha dohnat zameškané je past. <strong>Záleží na tom, kolikrát se vrátíš.</strong>",
+          "imageUrl": ""
+        },
+        {
+          "tag": "E-book",
+          "heading": "Začnu <s>zítra.</s> <strong>teď.</strong>",
+          "mainText": "E-book pro vysokoškoláky, kteří odkládají na poslední chvíli. <strong>Odkaz najdeš v biu.</strong>",
+          "imageUrl": ""
+        }
+      ]
+    }
+  ]
+}

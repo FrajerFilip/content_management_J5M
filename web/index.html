@@ -3,9 +3,9 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Reels Studio</title>
-  <meta name="description" content="Generátor 18s informačních videí pro Instagram Reels a TikTok." />
-  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎬</text></svg>" />
+  <title>Ještě 5 minut · Reels Studio</title>
+  <meta name="description" content="Generátor 18s videí pro Reels a TikTok propagujících e-book Ještě 5 minut." />
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 58 72'><g fill='none' stroke='%23ff6b2c' stroke-width='7' stroke-linecap='round' stroke-linejoin='round'><path d='M46 6H14l-3 24'/><path d='M11 30a22 22 0 1 1 -2 30'/></g></svg>" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
@@ -14,10 +14,14 @@
 <body>
   <header class="topbar">
     <div class="brand">
-      <span class="logo">🎬</span>
+      <svg class="logo" viewBox="0 0 58 72" aria-hidden="true">
+        <g fill="none" stroke="currentColor" stroke-width="6" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M46 6H14l-3 24" /><path d="M11 30a22 22 0 1 1 -2 30" /><path d="M29 38v12l8 5" stroke-width="5" />
+        </g>
+      </svg>
       <div>
-        <h1>Reels Studio</h1>
-        <p>4 snímky → 18s video 1080×1920 pro Reels a TikTok</p>
+        <h1>Ještě 5 minut <span class="muted">· Reels Studio</span></h1>
+        <p>Videa pro Reels a TikTok, která propagují e-book</p>
       </div>
     </div>
     <button id="settingsBtn" class="btn ghost" type="button" aria-controls="settings" aria-expanded="false">⚙️ Připojení</button>
@@ -53,12 +57,15 @@
 
   <main class="layout">
     <section class="editor">
+      <div class="panel scenario-bar">
+        <label class="scenario-label">Scénář videa
+          <select id="scenario"></select>
+        </label>
+        <button id="resetBtn" class="btn ghost small" type="button" title="Zahodit úpravy a načíst vybraný scénář znovu">↺ Obnovit scénář</button>
+      </div>
       <div class="section-head">
         <h2>Snímky</h2>
-        <div class="row">
-          <label class="check small"><input id="safeZones" type="checkbox" /> Zobrazit bezpečné zóny</label>
-          <button id="resetBtn" class="btn ghost small" type="button">Obnovit ukázku</button>
-        </div>
+        <label class="check small"><input id="safeZones" type="checkbox" /> Zobrazit bezpečné zóny</label>
       </div>
       <div id="slides" class="slides"></div>
     </section>
@@ -78,6 +85,19 @@
         </div>
       </section>
 
+      <section class="panel product">
+        <p class="eyebrow">Propagovaný produkt · E-book</p>
+        <h2 id="productName">Ještě 5 minut</h2>
+        <p id="productClaim" class="claim"></p>
+        <p id="productSubtitle" class="subtitle"></p>
+        <p id="productAudience" class="muted small"></p>
+        <ul id="productFacts" class="facts"></ul>
+        <details>
+          <summary>Obsah e-booku</summary>
+          <ol id="productChapters" class="chapters"></ol>
+        </details>
+      </section>
+
       <section class="panel">
         <h2>Poslední video</h2>
         <div class="player">
@@ -94,14 +114,17 @@
     <article class="slide panel">
       <div class="slide-form">
         <h3 class="slide-title"></h3>
+        <label><span>Štítek <span class="muted small">(oranžový nad nadpisem)</span></span>
+          <input data-field="tag" type="text" maxlength="60" />
+        </label>
         <label>Nadpis
           <input data-field="heading" type="text" maxlength="120" />
         </label>
-        <label>Text <span class="muted small">(&lt;strong&gt; zvýrazní)</span>
+        <label><span>Text <span class="muted small">(&lt;strong&gt; = oranžově, &lt;s&gt; = přeškrtnout)</span></span>
           <textarea data-field="mainText" rows="3" maxlength="400"></textarea>
         </label>
-        <label>URL obrázku
-          <input data-field="imageUrl" type="url" placeholder="https://…" spellcheck="false" />
+        <label><span>URL fotky na pozadí <span class="muted small">(nepovinné)</span></span>
+          <input data-field="imageUrl" type="url" placeholder="prázdné = brandové pozadí" spellcheck="false" />
         </label>
       </div>
       <div class="preview">
