@@ -102,7 +102,7 @@ function schedulePreview() {
 }
 
 function updateEstimates(tl) {
-  const over = tl.duration > 20.05 || tl.tempo > 1.12;
+  const over = tl.duration > 20.05 || tl.tempo > 1.18;
   $('estimate').innerHTML = `Odhadovaná délka videa <strong>${fmt(tl.duration)} s</strong>` +
     (tl.tempo > 1.001 ? ` · voiceover se zrychlí ×${tl.tempo.toFixed(2).replace('.', ',')}` : '') +
     (over ? ' – zkus voiceover zkrátit' : '');
