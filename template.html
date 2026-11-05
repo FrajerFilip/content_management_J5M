@@ -317,10 +317,10 @@
         });
       }
 
-      // Odhad pro náhled v prohlížeči (~15,5 znaku za sekundu české řeči)
+      // Odhad pro náhled v prohlížeči (~13,5 znaku za sekundu – tempo hlasu Piper)
       function estimateTimeline(slides, opts = {}) {
         const speed = Number(opts.speed) || 1;
-        const voices = slides.map((s) => ({ duration: Math.max(1.2, voiceText(s).length / 15.5 / speed), words: null }));
+        const voices = slides.map((s) => ({ duration: Math.max(1.2, voiceText(s).length / 13.5 / speed), words: null }));
         return buildTimeline(slides, voices);
       }
 
