@@ -94,11 +94,18 @@
         <div class="opts">
           <label>Hlas
             <select id="optVoice">
-              <option value="auto">Automaticky</option>
-              <option value="piper">Piper (zdarma)</option>
-              <option value="elevenlabs">ElevenLabs (API klíč)</option>
-              <option value="openai">OpenAI (API klíč)</option>
+              <option value="auto">Automaticky (nejlepší dostupný)</option>
+              <option value="elevenlabs">ElevenLabs – nejpřirozenější (klíč)</option>
+              <option value="azure">Azure – Antonín / Vlasta (klíč)</option>
+              <option value="openai">OpenAI (klíč)</option>
+              <option value="piper">Piper – zdarma, strojovější</option>
               <option value="none">Bez hlasu</option>
+            </select>
+          </label>
+          <label>Barva hlasu
+            <select id="optGender">
+              <option value="male">Mužský</option>
+              <option value="female">Ženský</option>
             </select>
           </label>
           <label>Tempo řeči
@@ -110,6 +117,7 @@
             </select>
           </label>
         </div>
+        <p id="voiceHint" class="muted small voice-hint"></p>
         <label class="check small"><input id="optMusic" type="checkbox" checked /> Hudba a zvukové efekty</label>
         <label class="check small"><input id="optCaptions" type="checkbox" checked /> Titulky (zvýrazněné slovo po slově)</label>
         <button id="generateBtn" class="btn primary block" type="button">▶ Vygenerovat video</button>

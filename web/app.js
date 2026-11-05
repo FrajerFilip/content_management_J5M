@@ -8,7 +8,15 @@ const FALLBACK_REPO = { owner: 'FrajerFilip', repo: 'content_management_J5M' };
 const LABELS = ['Hook', 'Info 1', 'Info 2', 'Výzva k akci'];
 const TYPES = ['hook', 'info', 'info', 'cta'];
 const STORAGE = { draft: 'reels.draft.v3', conn: 'reels.conn', token: 'reels.token', options: 'reels.options' };
-const DEFAULT_OPTIONS = { voice: 'auto', speed: 1, music: true, captions: true };
+const DEFAULT_OPTIONS = { voice: 'auto', gender: 'male', speed: 1, music: true, captions: true };
+const VOICE_HINTS = {
+  auto: 'Použije nejlepší hlas, pro který je v repozitáři API klíč (ElevenLabs → Azure → OpenAI), jinak Piper.',
+  elevenlabs: 'Nejpřirozenější projev, plynulá návaznost mezi snímky. Vyžaduje secret ELEVENLABS_API_KEY.',
+  azure: 'Oficiální české neuronové hlasy Antonín a Vlasta. Vyžaduje secret AZURE_SPEECH_KEY a proměnnou AZURE_SPEECH_REGION.',
+  openai: 'Řízený tón a tempo projevu. Vyžaduje secret OPENAI_API_KEY.',
+  piper: 'Zdarma a bez klíče, ale zní strojověji. Jen mužský hlas.',
+  none: 'Video jen s hudbou a titulky.',
+};
 
 let PRESETS = null; // načte se z presets.json
 let slides = [];
@@ -46,6 +54,8 @@ function loadOptions() {
   let o = { ...DEFAULT_OPTIONS };
   try { o = { ...o, ...JSON.parse(store.get(STORAGE.options)) }; } catch { /* ignore */ }
   $('optVoice').value = o.voice;
+  $('optGender').value = o.gender;
+  updateVoiceHint();
   $('optSpeed').value = String(o.speed);
   $('optMusic').checked = !!o.music;
   $('optCaptions').checked = !!o.captions;
@@ -54,10 +64,15 @@ function loadOptions() {
 function options() {
   return {
     voice: $('optVoice').value,
+    gender: $('optGender').value,
     speed: Number($('optSpeed').value) || 1,
     music: $('optMusic').checked,
     captions: $('optCaptions').checked,
   };
+}
+
+function updateVoiceHint() {
+  $('voiceHint').textContent = VOICE_HINTS[$('optVoice').value] || '';
 }
 
 // ---------------------------------------------------------------------------
@@ -406,7 +421,7 @@ async function currentStep(base, runId) {
 // ---------------------------------------------------------------------------
 // Přehrávač posledního videa
 // ---------------------------------------------------------------------------
-const VOICE_NAMES = { piper: 'Piper', elevenlabs: 'ElevenLabs', openai: 'OpenAI', none: 'bez hlasu' };
+const VOICE_NAMES = { piper: 'Piper', elevenlabs: 'ElevenLabs', azure: 'Azure', openai: 'OpenAI', none: 'bez hlasu' };
 
 async function loadLatest(expectedRequestId) {
   try {
@@ -475,8 +490,9 @@ async function init() {
 
   $('settingsBtn').addEventListener('click', () => openSettings($('settings').hidden));
   ['owner', 'repo', 'token', 'remember'].forEach((id) => $(id).addEventListener('change', saveConnection));
-  ['optVoice', 'optSpeed', 'optMusic', 'optCaptions'].forEach((id) => $(id).addEventListener('change', () => {
+  ['optVoice', 'optGender', 'optSpeed', 'optMusic', 'optCaptions'].forEach((id) => $(id).addEventListener('change', () => {
     store.set(STORAGE.options, JSON.stringify(options()));
+    updateVoiceHint();
     schedulePreview();
   }));
   $('safeZones').addEventListener('change', refreshPreview);

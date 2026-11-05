@@ -214,6 +214,8 @@ input:focus, textarea:focus { outline: 2px solid var(--accent); outline-offset: 
 .estimate.warn { color: var(--err); }
 .opts { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin: 12px 0; }
 .opts select { width: 100%; }
+.opts label:first-child { grid-column: 1 / -1; }
+.voice-hint { margin: 0 0 4px; }
 .downloads { display: grid; gap: 8px; }
 .downloads .row .btn { flex: 1; }
 

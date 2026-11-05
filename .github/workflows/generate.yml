@@ -14,7 +14,7 @@ on:
         required: false
         default: ""
       options:
-        description: 'Nastavení, např. {"voice":"auto","speed":1,"music":true,"captions":true} – voice: auto | piper | elevenlabs | openai | none'
+        description: 'Nastavení, např. {"voice":"auto","gender":"male","speed":1,"music":true,"captions":true} – voice: auto | elevenlabs | azure | openai | piper | none'
         required: false
         default: ""
       request_id:
@@ -104,6 +104,10 @@ jobs:
           # Volitelné prémiové hlasy – stačí přidat v Settings → Secrets and variables → Actions
           ELEVENLABS_API_KEY: ${{ secrets.ELEVENLABS_API_KEY }}
           ELEVENLABS_VOICE_ID: ${{ vars.ELEVENLABS_VOICE_ID }}
+          ELEVENLABS_MODEL: ${{ vars.ELEVENLABS_MODEL }}
+          AZURE_SPEECH_KEY: ${{ secrets.AZURE_SPEECH_KEY }}
+          AZURE_SPEECH_REGION: ${{ vars.AZURE_SPEECH_REGION }}
+          AZURE_TTS_VOICE: ${{ vars.AZURE_TTS_VOICE }}
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
           OPENAI_TTS_VOICE: ${{ vars.OPENAI_TTS_VOICE }}
         run: node index.js

@@ -38,7 +38,8 @@ const LIMITS = { heading: 120, mainText: 400, tag: 60, voiceover: 300 };
 // ---------------------------------------------------------------------------
 // Vstupy
 //   SLIDES_JSON  = JSON pole 4 snímků [{tag, heading, mainText, voiceover, imageUrl}]
-//   OPTIONS_JSON = {"voice": "auto|piper|elevenlabs|openai|none", "speed": 1, "music": true, "captions": true}
+//   OPTIONS_JSON = {"voice": "auto|elevenlabs|azure|openai|piper|none", "gender": "male|female",
+//                   "speed": 1, "music": true, "captions": true}
 // ---------------------------------------------------------------------------
 function parseJsonEnv(name) {
   const raw = (process.env[name] || '').trim();
@@ -78,6 +79,7 @@ function loadOptions() {
   const speed = Number(o.speed ?? 1);
   return {
     voice: String(o.voice || process.env.TTS_PROVIDER || 'auto'),
+    gender: o.gender === 'female' ? 'female' : 'male',
     speed: Number.isFinite(speed) ? Math.min(1.3, Math.max(0.8, speed)) : 1,
     music: o.music !== false,
     captions: o.captions !== false,
@@ -149,10 +151,10 @@ function writeSrt(scenes, file) {
     const options = loadOptions();
     prepareDir(TEMP_DIR, true);
     prepareDir(OUTPUT_DIR);
-    console.log(`⚙️  Nastavení: hlas=${options.voice}, rychlost=${options.speed}, hudba=${options.music}, titulky=${options.captions}`);
+    console.log(`⚙️  Nastavení: hlas=${options.voice} (${options.gender === 'female' ? 'ženský' : 'mužský'}), rychlost=${options.speed}, hudba=${options.music}, titulky=${options.captions}`);
 
     // 1) voiceover
-    const { provider, voices } = await synthesizeAll(slides.map(voiceText), TEMP_DIR, { provider: options.voice, speed: options.speed });
+    const { provider, voices } = await synthesizeAll(slides.map(voiceText), TEMP_DIR, { provider: options.voice, speed: options.speed, gender: options.gender });
 
     // 2) časování + animace
     let page;
