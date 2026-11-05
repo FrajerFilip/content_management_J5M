@@ -1,240 +1,110 @@
 'use strict';
 
 /**
- * Generátor informačních Reels / TikTok videí (18 s, 1080x1920, 30 FPS).
+ * Generátor animovaných Reels / TikTok videí s voiceoverem (15–20 s, 1080x1920, 30 FPS).
  *
- * 1) Dosadí data 4 snímků do template.html
- * 2) Puppeteer vyrenderuje 4 PNG (1080x1920) do temp/
- * 3) fluent-ffmpeg je spojí do output/reels-output.mp4 (každý snímek 4,5 s)
+ * 1) Načte 4 snímky (hook, info, info, výzva k akci) a nastavení
+ * 2) Namluví voiceover každého snímku (Piper / ElevenLabs / OpenAI)
+ * 3) Podle délky hlasu spočítá časování scén
+ * 4) Puppeteer vyrenderuje animaci z template.html snímek po snímku (30 FPS)
+ * 5) FFmpeg vytvoří zvukovou stopu (hlas + hudba + efekty) a spojí vše do MP4
+ *
+ * Výstup v output/: reels-output.mp4, cover.jpg, captions.srt, latest.json
  */
 
 const fs = require('fs');
 const path = require('path');
-const puppeteer = require('puppeteer');
 const ffmpeg = require('fluent-ffmpeg');
+const { synthesizeAll } = require('./lib/tts');
+const { buildAudio } = require('./lib/audio');
+const { openTemplate, buildTimeline, renderVideo } = require('./lib/render');
 
 // ---------------------------------------------------------------------------
 // Konfigurace
 // ---------------------------------------------------------------------------
-const WIDTH = 1080;
-const HEIGHT = 1920;
 const FPS = 30;
-const SLIDE_DURATION = 4.5; // sekundy na snímek
-
 const ROOT = __dirname;
 const TEMPLATE_PATH = path.join(ROOT, 'template.html');
 const TEMP_DIR = path.join(ROOT, 'temp');
 const OUTPUT_DIR = path.join(ROOT, 'output');
 const OUTPUT_FILE = path.join(OUTPUT_DIR, 'reels-output.mp4');
 
-// Volitelně vlastní cesta k binárce FFmpeg (jinak se použije ffmpeg z PATH)
 if (process.env.FFMPEG_PATH) ffmpeg.setFfmpegPath(process.env.FFMPEG_PATH);
 
-// ---------------------------------------------------------------------------
-// Testovací data – výchozí scénář e-booku „Ještě 5 minut“ (presets.json)
-// ---------------------------------------------------------------------------
 const PRESETS = JSON.parse(fs.readFileSync(path.join(ROOT, 'presets.json'), 'utf8'));
-const DEFAULT_SLIDES = PRESETS.scenarios[0].slides;
+const SLIDE_TYPES = ['hook', 'info', 'info', 'cta'];
+const LIMITS = { heading: 120, mainText: 400, tag: 60, voiceover: 300 };
 
 // ---------------------------------------------------------------------------
-// Načtení dat snímků
-//   - SLIDES_JSON (env) = JSON pole 4 snímků z webové aplikace / API
-//   - jinak se použijí testovací data výše
+// Vstupy
+//   SLIDES_JSON  = JSON pole 4 snímků [{tag, heading, mainText, voiceover, imageUrl}]
+//   OPTIONS_JSON = {"voice": "auto|piper|elevenlabs|openai|none", "speed": 1, "music": true, "captions": true}
 // ---------------------------------------------------------------------------
-const SLIDE_TYPES = ['hook', 'info', 'info', 'cta'];
-const MAX_HEADING = 120;
-const MAX_TEXT = 400;
-const MAX_TAG = 60;
+function parseJsonEnv(name) {
+  const raw = (process.env[name] || '').trim();
+  if (!raw || raw === 'null' || raw === '""') return null;
+  try {
+    return JSON.parse(raw);
+  } catch (err) {
+    throw new Error(`${name} není platný JSON: ${err.message}`);
+  }
+}
 
 function loadSlides() {
-  const raw = (process.env.SLIDES_JSON || '').trim();
-  if (!raw || raw === 'null' || raw === '""') {
+  let data = parseJsonEnv('SLIDES_JSON');
+  if (!data) {
     console.log(`ℹ️  SLIDES_JSON není zadán – používám scénář „${PRESETS.scenarios[0].name}“.`);
-    return DEFAULT_SLIDES.map((s, i) => ({ ...s, type: SLIDE_TYPES[i] }));
-  }
-
-  let data;
-  try {
-    data = JSON.parse(raw);
-  } catch (err) {
-    throw new Error(`SLIDES_JSON není platný JSON: ${err.message}`);
+    data = PRESETS.scenarios[0].slides;
   }
   if (!Array.isArray(data) || data.length !== SLIDE_TYPES.length) {
     throw new Error(`SLIDES_JSON musí být pole s přesně ${SLIDE_TYPES.length} snímky.`);
   }
 
   return data.map((s, i) => {
-    const heading = String(s?.heading ?? '').trim();
-    const mainText = String(s?.mainText ?? '').trim();
+    const out = { type: SLIDE_TYPES[i] };
+    for (const key of Object.keys(LIMITS)) {
+      out[key] = String(s?.[key] ?? '').trim();
+      if (out[key].length > LIMITS[key]) throw new Error(`Snímek ${i + 1}: pole „${key}“ je delší než ${LIMITS[key]} znaků.`);
+    }
+    if (!out.heading) throw new Error(`Snímek ${i + 1}: chybí nadpis.`);
     const imageUrl = String(s?.imageUrl ?? '').trim();
-    const tag = String(s?.tag ?? '').trim();
-    if (!heading) throw new Error(`Snímek ${i + 1}: chybí nadpis.`);
-    if (heading.length > MAX_HEADING) throw new Error(`Snímek ${i + 1}: nadpis je delší než ${MAX_HEADING} znaků.`);
-    if (tag.length > MAX_TAG) throw new Error(`Snímek ${i + 1}: štítek je delší než ${MAX_TAG} znaků.`);
-    if (mainText.length > MAX_TEXT) throw new Error(`Snímek ${i + 1}: text je delší než ${MAX_TEXT} znaků.`);
-    return {
-      type: SLIDE_TYPES[i],
-      tag,
-      heading,
-      mainText,
-      // povoleny jen http(s) adresy, jinak se použije záložní pozadí šablony
-      imageUrl: /^https?:\/\//i.test(imageUrl) ? imageUrl : '',
-    };
+    out.imageUrl = /^https?:\/\//i.test(imageUrl) ? imageUrl : '';
+    return out;
   });
 }
+
+function loadOptions() {
+  const o = parseJsonEnv('OPTIONS_JSON') || {};
+  const speed = Number(o.speed ?? 1);
+  return {
+    voice: String(o.voice || process.env.TTS_PROVIDER || 'auto'),
+    speed: Number.isFinite(speed) ? Math.min(1.3, Math.max(0.8, speed)) : 1,
+    music: o.music !== false,
+    captions: o.captions !== false,
+  };
+}
+
+// Text pro TTS: bez HTML značek; prázdný voiceover = nadpis + text snímku
+const plain = (html) => String(html || '').replace(/<[^>]*>/g, '').replace(/\s+/g, ' ').trim();
+const voiceText = (s) => plain(s.voiceover) || `${plain(s.heading)}. ${plain(s.mainText)}`;
 
 // ---------------------------------------------------------------------------
 // Pomocné funkce
 // ---------------------------------------------------------------------------
-
-/** Escapuje HTML, ale ponechá povolené tagy <strong>, <em>, <s>, <br>. */
-function sanitize(text) {
-  const escaped = String(text ?? '')
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;');
-  return escaped
-    .replace(/&lt;(\/?)(strong|em|s|br)\s*\/?&gt;/gi, '<$1$2>')
-    .replace(/\n/g, '<br>')
-    // česká typografie: jednopísmenné předložky/spojky nezůstanou na konci řádku
-    .replace(/(^|[\s>(„])([kvszouaiKVSZOUAI]) +/g, '$1$2\u00A0')
-    .replace(/(^|[\s>(„])([kvszouaiKVSZOUAI]) +/g, '$1$2\u00A0');
-}
-
-function escapeAttr(value) {
-  return String(value ?? '').replace(/&/g, '&amp;').replace(/"/g, '&quot;');
-}
-
-function renderTemplate(template, slide) {
-  return template
-    .replace(/{{HEADING}}/g, sanitize(slide.heading))
-    .replace(/{{MAIN_TEXT}}/g, sanitize(slide.mainText))
-    .replace(/{{IMAGE_URL}}/g, escapeAttr(slide.imageUrl))
-    .replace(/{{TAG}}/g, sanitize(slide.tag))
-    .replace(/{{TYPE}}/g, escapeAttr(slide.type));
-}
-
 function prepareDir(dir, clean = false) {
   if (clean && fs.existsSync(dir)) fs.rmSync(dir, { recursive: true, force: true });
   fs.mkdirSync(dir, { recursive: true });
 }
 
-// ---------------------------------------------------------------------------
-// 1) Render PNG snímků přes Puppeteer
-// ---------------------------------------------------------------------------
-async function renderSlides(slideData) {
-  const template = fs.readFileSync(TEMPLATE_PATH, 'utf8');
-
-  const browser = await puppeteer.launch({
-    headless: true,
-    // --no-sandbox je nutné na GitHub Actions (Ubuntu 24.04 omezuje user namespaces)
-    args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage', '--font-render-hinting=none'],
-  });
-
-  const files = [];
-  try {
-    const page = await browser.newPage();
-    await page.setViewport({ width: WIDTH, height: HEIGHT, deviceScaleFactor: 1 });
-
-    for (let i = 0; i < slideData.length; i++) {
-      const slide = slideData[i];
-      const html = renderTemplate(template, slide);
-
-      try {
-        await page.setContent(html, { waitUntil: 'networkidle0', timeout: 30000 });
-      } catch (err) {
-        // Pomalé/nedostupné obrázky nebo fonty nesmí shodit celý běh
-        console.warn(`⚠️  Snímek ${i + 1}: načítání vypršelo (${err.message}), pokračuji s tím, co je načteno.`);
-      }
-
-      // Počkej na fonty a dekódování obrázku
-      await page.evaluate(async () => {
-        await document.fonts.ready;
-        const img = document.querySelector('img.bg');
-        if (img && !img.complete) {
-          await new Promise((resolve) => {
-            img.addEventListener('load', resolve, { once: true });
-            img.addEventListener('error', resolve, { once: true });
-            setTimeout(resolve, 10000);
-          });
-        }
-      });
-
-      const file = path.join(TEMP_DIR, `slide-${String(i + 1).padStart(2, '0')}.png`);
-      await page.screenshot({
-        path: file,
-        type: 'png',
-        clip: { x: 0, y: 0, width: WIDTH, height: HEIGHT },
-      });
-      files.push(file);
-      console.log(`🖼️  Vygenerován snímek ${i + 1}/${slideData.length} (${slide.type}): ${path.relative(ROOT, file)}`);
-    }
-  } finally {
-    await browser.close();
-  }
-
-  return files;
-}
-
-// ---------------------------------------------------------------------------
-// 2) Spojení PNG do MP4 přes fluent-ffmpeg
-// ---------------------------------------------------------------------------
-function buildVideo(images, outputFile) {
+function mux(video, audio, out) {
   return new Promise((resolve, reject) => {
-    const totalDuration = images.length * SLIDE_DURATION;
-    const cmd = ffmpeg();
-
-    // Každý obrázek jako samostatný vstup, smyčkovaný přesně 4,5 s při 30 FPS
-    images.forEach((img) => {
-      cmd.input(img).inputOptions(['-loop 1', `-framerate ${FPS}`, `-t ${SLIDE_DURATION}`]);
-    });
-
-    // Tichá zvuková stopa – zvyšuje kompatibilitu s uploadery sociálních sítí
-    cmd.input('anullsrc=channel_layout=stereo:sample_rate=44100').inputFormat('lavfi');
-
-    // Normalizace každého snímku + spojení za sebe
-    const filters = images.map(
-      (_, i) =>
-        `[${i}:v]scale=${WIDTH}:${HEIGHT}:force_original_aspect_ratio=decrease,` +
-        `pad=${WIDTH}:${HEIGHT}:(ow-iw)/2:(oh-ih)/2,setsar=1,fps=${FPS},format=yuv420p[v${i}]`
-    );
-    const concatInputs = images.map((_, i) => `[v${i}]`).join('');
-    filters.push(`${concatInputs}concat=n=${images.length}:v=1:a=0[outv]`);
-
-    cmd
-      .complexFilter(filters)
-      .outputOptions([
-        '-map [outv]',
-        `-map ${images.length}:a`,
-        '-c:v libx264',
-        '-preset medium',
-        '-profile:v high',
-        '-level 4.1',
-        '-crf 20',
-        '-pix_fmt yuv420p',
-        `-r ${FPS}`,
-        `-g ${FPS * 2}`,
-        '-c:a aac',
-        '-b:a 128k',
-        '-ar 44100',
-        `-t ${totalDuration}`,
-        '-movflags +faststart',
-      ])
-      .output(outputFile)
-      .on('start', (line) => console.log(`🎬 FFmpeg: ${line}`))
-      .on('progress', (p) => {
-        if (p.timemark) process.stdout.write(`\r⏳ Kóduji… ${p.timemark}`);
-      })
-      .on('error', (err, _stdout, stderr) => {
-        console.error('\n❌ FFmpeg chyba:', err.message);
-        if (stderr) console.error(stderr);
-        reject(err);
-      })
-      .on('end', () => {
-        process.stdout.write('\n');
-        resolve(outputFile);
-      })
+    ffmpeg()
+      .input(video)
+      .input(audio)
+      .outputOptions(['-map 0:v:0', '-map 1:a:0', '-c:v copy', '-c:a copy', '-shortest', '-movflags +faststart'])
+      .output(out)
+      .on('error', (err, _o, stderr) => reject(new Error(`${err.message}\n${(stderr || '').slice(-1500)}`)))
+      .on('end', resolve)
       .run();
   });
 }
@@ -245,26 +115,73 @@ function probe(file) {
   });
 }
 
+function srtTime(t) {
+  const ms = Math.round(t * 1000);
+  const p = (n, l = 2) => String(n).padStart(l, '0');
+  return `${p(Math.floor(ms / 3600000))}:${p(Math.floor(ms / 60000) % 60)}:${p(Math.floor(ms / 1000) % 60)},${p(ms % 1000, 3)}`;
+}
+
+// Titulky jako .srt (hodí se pro ruční nahrání na sociální sítě)
+function writeSrt(scenes, file) {
+  const cues = [];
+  scenes.forEach((sc) => {
+    let cur = [];
+    sc.words.forEach((w, k) => {
+      cur.push(w);
+      if (/[.!?…,;:–]$/.test(w.w) || cur.length >= 6 || k === sc.words.length - 1) {
+        cues.push({ s: cur[0].s, e: Math.min(cur[cur.length - 1].e + 0.3, sc.start + sc.duration), text: cur.map((x) => x.w).join(' ') });
+        cur = [];
+      }
+    });
+  });
+  const body = cues.map((c, i) => `${i + 1}\n${srtTime(c.s)} --> ${srtTime(c.e)}\n${c.text}\n`).join('\n');
+  fs.writeFileSync(file, body);
+}
+
 // ---------------------------------------------------------------------------
 // Main
 // ---------------------------------------------------------------------------
 (async () => {
   const started = Date.now();
+  let browser;
   try {
     const slides = loadSlides();
+    const options = loadOptions();
     prepareDir(TEMP_DIR, true);
     prepareDir(OUTPUT_DIR);
+    console.log(`⚙️  Nastavení: hlas=${options.voice}, rychlost=${options.speed}, hudba=${options.music}, titulky=${options.captions}`);
 
-    console.log(`🚀 Generuji ${slides.length} snímky (${WIDTH}x${HEIGHT})…`);
-    const images = await renderSlides(slides);
+    // 1) voiceover
+    const { provider, voices } = await synthesizeAll(slides.map(voiceText), TEMP_DIR, { provider: options.voice, speed: options.speed });
 
-    console.log(`🎞️  Skládám video (${images.length} × ${SLIDE_DURATION} s = ${images.length * SLIDE_DURATION} s, ${FPS} FPS)…`);
-    await buildVideo(images, OUTPUT_FILE);
+    // 2) časování + animace
+    let page;
+    ({ browser, page } = await openTemplate(TEMPLATE_PATH));
+    const timeline = await buildTimeline(page, slides, voices.map((v) => ({ duration: v.duration, words: v.words })));
+    console.log(`⏱️  Délka videa ${timeline.duration.toFixed(2)} s, scény: ${timeline.scenes.map((s) => s.duration.toFixed(2)).join(' + ')} s` +
+      (timeline.tempo !== 1 ? `, voiceover zrychlen ×${timeline.tempo.toFixed(2)}` : ''));
+    if (timeline.duration > 20.05) console.warn('⚠️  Video je delší než 20 s – zkraťte texty voiceoveru.');
+
+    const videoOnly = path.join(TEMP_DIR, 'video.mp4');
+    const coverFile = path.join(OUTPUT_DIR, 'cover.jpg');
+    const data = { ...timeline, captions: options.captions };
+    await renderVideo(page, data, { fps: FPS, out: videoOnly, coverFile, coverTime: timeline.scenes[0].start + Math.min(2.2, timeline.scenes[0].duration - 0.4) });
+    await browser.close();
+    browser = null;
+
+    // 3) zvuk
+    console.log(`🎵 Míchám zvuk (hlas${options.music ? ' + hudba + efekty' : ''})…`);
+    const audio = path.join(TEMP_DIR, 'audio.m4a');
+    await buildAudio({ voices, scenes: timeline.scenes, duration: timeline.duration, tempo: timeline.tempo, music: options.music, musicGain: provider === 'none' ? 2.5 : 1, out: audio });
+
+    // 4) finální MP4
+    await mux(videoOnly, audio, OUTPUT_FILE);
+    writeSrt(timeline.scenes, path.join(OUTPUT_DIR, 'captions.srt'));
 
     const info = await probe(OUTPUT_FILE);
     const v = info.streams.find((s) => s.codec_type === 'video');
+    const a = info.streams.find((s) => s.codec_type === 'audio');
 
-    // Metadata pro webovou aplikaci (podle request_id pozná, že je nové video nasazené)
     const { GITHUB_SERVER_URL, GITHUB_REPOSITORY, GITHUB_RUN_ID } = process.env;
     const meta = {
       requestId: process.env.REQUEST_ID || null,
@@ -273,16 +190,22 @@ function probe(file) {
       duration: Number(info.format.duration),
       width: v.width,
       height: v.height,
+      voice: provider,
+      options,
       slides,
+      timeline: timeline.scenes.map(({ start, duration, voiceStart }) => ({ start, duration, voiceStart })),
     };
     fs.writeFileSync(path.join(OUTPUT_DIR, 'latest.json'), JSON.stringify(meta, null, 2));
+
     console.log(
       `✅ Hotovo: ${path.relative(ROOT, OUTPUT_FILE)} | ${v.width}x${v.height} | ${v.codec_name} | ${v.pix_fmt} | ` +
-        `${v.r_frame_rate} FPS | ${Number(info.format.duration).toFixed(2)} s | ` +
-        `${(info.format.size / 1024 / 1024).toFixed(2)} MB | ${((Date.now() - started) / 1000).toFixed(1)} s`
+      `${v.r_frame_rate} FPS | zvuk ${a ? `${a.codec_name} ${a.sample_rate} Hz` : 'žádný'} | ` +
+      `${Number(info.format.duration).toFixed(2)} s | ${(info.format.size / 1024 / 1024).toFixed(2)} MB | ` +
+      `${((Date.now() - started) / 1000).toFixed(1)} s`
     );
   } catch (err) {
     console.error('❌ Generování selhalo:', err);
+    if (browser) await browser.close().catch(() => {});
     process.exit(1);
   }
 })();

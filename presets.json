@@ -5,7 +5,11 @@
     "claim": "Začnu <s>zítra.</s> <strong>teď.</strong>",
     "subtitle": "Přestaň se učit noc před zkouškou.",
     "audience": "E-book pro vysokoškoláky, kteří učení a bakalářku odkládají na poslední chvíli.",
-    "facts": ["8 kapitol", "každá na 5 minut čtení", "každá končí jedním úkolem"],
+    "facts": [
+      "8 kapitol",
+      "každá na 5 minut čtení",
+      "každá končí jedním úkolem"
+    ],
     "chapters": [
       "Proč odkládáme",
       "Pravidlo pěti minut",
@@ -26,24 +30,28 @@
           "tag": "Pro vysokoškoláky",
           "heading": "Zase se učíš noc před zkouškou?",
           "mainText": "Víš, co máš dělat, a stejně to odkládáš. <strong>Není to lenost.</strong>",
+          "voiceover": "Zase se učíš celou noc před zkouškou? Tohle není lenost.",
           "imageUrl": ""
         },
         {
           "tag": "Kapitola 01 · Proč odkládáme",
           "heading": "Není to problém s časem, ale s pocitem",
           "mainText": "Úkol vyvolá nejistotu nebo strach z chyby. Mozek ten pocit chce vypnout a <strong>mobil nabídne úlevu za dvě sekundy</strong>.",
+          "voiceover": "Odkládání není problém s časem. Mozek jen utíká před nepříjemným pocitem.",
           "imageUrl": ""
         },
         {
           "tag": "Kapitola 02 · Pravidlo pěti minut",
           "heading": "Pracuj 5 minut. Pak smíš přestat.",
           "mainText": "Pět minut je tak málo, že se těžko hledá výmluva. <strong>Největší odpor cítíš před začátkem</strong>, ne během práce.",
+          "voiceover": "Zkus pravidlo pěti minut. Pracuj pět minut, pak smíš přestat.",
           "imageUrl": ""
         },
         {
           "tag": "E-book",
           "heading": "Začnu <s>zítra.</s> <strong>teď.</strong>",
           "mainText": "E-book pro vysokoškoláky, kteří odkládají na poslední chvíli. <strong>Odkaz najdeš v biu.</strong>",
+          "voiceover": "Začni teď, ne zítra. E-book Ještě pět minut najdeš v odkazu v biu.",
           "imageUrl": ""
         }
       ]
@@ -56,24 +64,28 @@
           "tag": "Pro vysokoškoláky",
           "heading": "Otevřeš skripta a za 3 minuty jsi na mobilu?",
           "mainText": "Silou vůle to neporazíš. <strong>Vyhrává vzdálenost.</strong>",
+          "voiceover": "Otevřeš skripta a za tři minuty scrolluješ mobil? Vůle tu nestačí.",
           "imageUrl": ""
         },
         {
           "tag": "Kapitola 03 · Mobil",
           "heading": "Co je daleko, to se nedělá",
           "mainText": "Při učení dej telefon <strong>do jiné místnosti</strong>. Ten malý odpor, zvednout se a dojít pro něj, většinou stačí.",
+          "voiceover": "Dej telefon do jiné místnosti. Ten malý odpor většinou stačí.",
           "imageUrl": ""
         },
         {
           "tag": "Pravidlo když–pak",
           "heading": "Rozhodni se předem",
           "mainText": "<strong>Když</strong> sáhnu po telefonu bez důvodu, <strong>pak</strong> ho položím displejem dolů a dokončím větu.",
+          "voiceover": "A rozhodni se předem. Když sáhnu po mobilu, položím ho displejem dolů.",
           "imageUrl": ""
         },
         {
           "tag": "E-book",
           "heading": "Začnu <s>zítra.</s> <strong>teď.</strong>",
           "mainText": "E-book pro vysokoškoláky, kteří odkládají na poslední chvíli. <strong>Odkaz najdeš v biu.</strong>",
+          "voiceover": "Začni teď, ne zítra. E-book Ještě pět minut najdeš v odkazu v biu.",
           "imageUrl": ""
         }
       ]
@@ -86,24 +98,28 @@
           "tag": "Zkouškové",
           "heading": "Zkouška za 14 dní a ještě jsi nezačal?",
           "mainText": "Co se naučíš za jednu noc, pamatuješ si pár dní. <strong>Tady je plán, který funguje líp.</strong>",
+          "voiceover": "Zkouška za čtrnáct dní a ještě jsi nezačal? Mám pro tebe plán.",
           "imageUrl": ""
         },
         {
           "tag": "Kapitola 04 · Zkouškové",
           "heading": "Rozlož to a vybavuj si",
           "mainText": "Stejná látka <strong>třikrát po hodině</strong> vydrží déle než tři hodiny v kuse. A místo čtení odpovídej zpaměti.",
+          "voiceover": "Opakuj s odstupem a místo čtení si látku vybavuj zpaměti.",
           "imageUrl": ""
         },
         {
           "tag": "Když zbývají 3 dny",
           "heading": "Třiď. Vybavuj si. Spi.",
           "mainText": "Rozděl okruhy na umím / trochu / vůbec. Začni tím, co „trochu“ umíš. A <strong>jdi spát</strong>, spánek ukládá naučené.",
+          "voiceover": "Zbývají tři dny? Roztřiď okruhy, vybavuj si je a hlavně se vyspi.",
           "imageUrl": ""
         },
         {
           "tag": "E-book",
           "heading": "Začnu <s>zítra.</s> <strong>teď.</strong>",
           "mainText": "E-book pro vysokoškoláky, kteří odkládají na poslední chvíli. <strong>Odkaz najdeš v biu.</strong>",
+          "voiceover": "Začni teď, ne zítra. E-book Ještě pět minut najdeš v odkazu v biu.",
           "imageUrl": ""
         }
       ]
@@ -116,24 +132,28 @@
           "tag": "Bakalářská práce",
           "heading": "Bakalářka je pořád „až po zkouškovém“?",
           "mainText": "Je velká, termín je daleko a nikdo tě nehlídá. <strong>Ideální úkol na odkládání.</strong>",
+          "voiceover": "Bakalářka je pořád až po zkouškovém? Je to ideální úkol na odkládání.",
           "imageUrl": ""
         },
         {
           "tag": "Kapitola 05 · Bakalářka",
           "heading": "Začni osnovou, ne textem",
           "mainText": "Prázdná stránka děsí. Osnova ne. Napiš nadpisy kapitol a pod každý <strong>dvě tři odrážky</strong>.",
+          "voiceover": "Nezačínej textem. Napiš osnovu, nadpisy kapitol a pár odrážek.",
           "imageUrl": ""
         },
         {
           "tag": "Krátce, ale často",
           "heading": "25 minut denně > celý víkend",
           "mainText": "Každý pracovní den <strong>jeden blok na bakalářce</strong>. Za semestr z toho jsou desítky hodin.",
+          "voiceover": "Dvacet pět minut denně udělá víc než celý víkend jednou za měsíc.",
           "imageUrl": ""
         },
         {
           "tag": "E-book",
           "heading": "Začnu <s>zítra.</s> <strong>teď.</strong>",
           "mainText": "E-book pro vysokoškoláky, kteří odkládají na poslední chvíli. <strong>Odkaz najdeš v biu.</strong>",
+          "voiceover": "Začni teď, ne zítra. E-book Ještě pět minut najdeš v odkazu v biu.",
           "imageUrl": ""
         }
       ]
@@ -146,24 +166,28 @@
           "tag": "Perfekcionismus",
           "heading": "Musí to být dokonalé? Proto to ještě nemáš.",
           "mainText": "Nejjistější způsob, jak neudělat chybu, je <strong>nedělat nic</strong>.",
+          "voiceover": "Musí to být dokonalé? Proto to pořád ještě nemáš hotové.",
           "imageUrl": ""
         },
         {
           "tag": "Kapitola 06 · Perfekcionismus",
           "heading": "Dost dobré je cíl, ne kompromis",
           "mainText": "Předem si řekni, <strong>co musí výsledek splňovat</strong>, jaký výsledek ti stačí a kolik času tomu dáš.",
+          "voiceover": "Předem si řekni, co musí výsledek splnit a kolik času mu dáš.",
           "imageUrl": ""
         },
         {
           "tag": "Psaní a úpravy nikdy najednou",
           "heading": "Hotové se dá vylepšit. Nezačaté ne.",
           "mainText": "Když píšeš, nepiluj formulace. <strong>První verze je pro tebe</strong>, ne pro hodnotitele.",
+          "voiceover": "První verze je pro tebe. Hotové se dá vylepšit, nezačaté ne.",
           "imageUrl": ""
         },
         {
           "tag": "E-book",
           "heading": "Začnu <s>zítra.</s> <strong>teď.</strong>",
           "mainText": "E-book pro vysokoškoláky, kteří odkládají na poslední chvíli. <strong>Odkaz najdeš v biu.</strong>",
+          "voiceover": "Začni teď, ne zítra. E-book Ještě pět minut najdeš v odkazu v biu.",
           "imageUrl": ""
         }
       ]
@@ -176,24 +200,28 @@
           "tag": "Pro vysokoškoláky",
           "heading": "Vynechal jsi tři dny a chceš to vzdát?",
           "mainText": "Jeden vynechaný den nic nezkazí. Zkazí to až myšlenka <strong>„stejně je to jedno“</strong>.",
+          "voiceover": "Vynechal jsi tři dny a chceš to celé vzdát? Počkej.",
           "imageUrl": ""
         },
         {
           "tag": "Kapitola 07 · Tři kroky návratu",
           "heading": "Neodsuzuj. Zmenši. Naplánuj.",
           "mainText": "Udělej <strong>dvouminutovou verzi</strong>: otevři úkol a napiš jednu větu. Pak si napiš čas a místo na zítra.",
+          "voiceover": "Neodsuzuj se, zmenši úkol na dvě minuty a naplánuj si zítřek.",
           "imageUrl": ""
         },
         {
           "tag": "Nedoháněj",
           "heading": "Nezáleží na tom, kolikrát vynecháš",
           "mainText": "Snaha dohnat zameškané je past. <strong>Záleží na tom, kolikrát se vrátíš.</strong>",
+          "voiceover": "Nezáleží na tom, kolikrát vynecháš. Záleží na tom, kolikrát se vrátíš.",
           "imageUrl": ""
         },
         {
           "tag": "E-book",
           "heading": "Začnu <s>zítra.</s> <strong>teď.</strong>",
           "mainText": "E-book pro vysokoškoláky, kteří odkládají na poslední chvíli. <strong>Odkaz najdeš v biu.</strong>",
+          "voiceover": "Začni teď, ne zítra. E-book Ještě pět minut najdeš v odkazu v biu.",
           "imageUrl": ""
         }
       ]

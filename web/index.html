@@ -65,15 +65,53 @@
       </div>
       <div class="section-head">
         <h2>Snímky</h2>
-        <label class="check small"><input id="safeZones" type="checkbox" /> Zobrazit bezpečné zóny</label>
+        <span class="muted small">Text = na obrazovce · Voiceover = co zazní (čísla piš slovy)</span>
       </div>
       <div id="slides" class="slides"></div>
     </section>
 
     <aside class="side">
       <section class="panel">
+        <div class="panel-head">
+          <h2>Náhled animace</h2>
+          <span id="timeLabel" class="muted small">0,0 / 0,0 s</span>
+        </div>
+        <div id="stage" class="stage">
+          <iframe id="player" src="template.html" title="Animovaný náhled videa" tabindex="-1"></iframe>
+        </div>
+        <div class="controls">
+          <button id="playBtn" class="btn small play" type="button" aria-label="Přehrát">▶</button>
+          <input id="scrub" type="range" min="0" max="18" step="0.01" value="0" aria-label="Posun v náhledu" />
+        </div>
+        <p id="estimate" class="muted small estimate"></p>
+        <label class="check small"><input id="browserVoice" type="checkbox" checked /> Předčítat hlasem prohlížeče (jen orientačně)</label>
+        <label class="check small"><input id="safeZones" type="checkbox" /> Zobrazit bezpečné zóny</label>
+      </section>
+
+      <section class="panel">
         <h2>Generování</h2>
-        <p class="muted">Každý snímek se zobrazí 4,5 s · H.264 · yuv420p · 30 FPS</p>
+        <p class="muted small">Animace · voiceover · hudba · titulky · 1080×1920 · 30 FPS · 15–20 s</p>
+        <div class="opts">
+          <label>Hlas
+            <select id="optVoice">
+              <option value="auto">Automaticky</option>
+              <option value="piper">Piper (zdarma)</option>
+              <option value="elevenlabs">ElevenLabs (API klíč)</option>
+              <option value="openai">OpenAI (API klíč)</option>
+              <option value="none">Bez hlasu</option>
+            </select>
+          </label>
+          <label>Tempo řeči
+            <select id="optSpeed">
+              <option value="0.9">Klidnější</option>
+              <option value="1">Normální</option>
+              <option value="1.1">Svižné</option>
+              <option value="1.2">Rychlé</option>
+            </select>
+          </label>
+        </div>
+        <label class="check small"><input id="optMusic" type="checkbox" checked /> Hudba a zvukové efekty</label>
+        <label class="check small"><input id="optCaptions" type="checkbox" checked /> Titulky (zvýrazněné slovo po slově)</label>
         <button id="generateBtn" class="btn primary block" type="button">▶ Vygenerovat video</button>
         <div id="status" class="status" hidden>
           <div class="status-line">
@@ -105,7 +143,13 @@
           <div id="noVideo" class="empty">Zatím tu není žádné video.</div>
         </div>
         <p id="videoMeta" class="muted small"></p>
-        <a id="downloadLink" class="btn block" href="videos/reels-output.mp4" download="reels-output.mp4" hidden>⬇ Stáhnout MP4</a>
+        <div id="downloads" class="downloads" hidden>
+          <a id="downloadLink" class="btn block" href="videos/reels-output.mp4" download="reels-output.mp4">⬇ Stáhnout MP4</a>
+          <div class="row">
+            <a id="coverLink" class="btn small" href="videos/cover.jpg" download="cover.jpg">Náhledový obrázek</a>
+            <a id="srtLink" class="btn small" href="videos/captions.srt" download="captions.srt">Titulky .srt</a>
+          </div>
+        </div>
       </section>
     </aside>
   </main>
@@ -113,7 +157,10 @@
   <template id="slideTpl">
     <article class="slide panel">
       <div class="slide-form">
-        <h3 class="slide-title"></h3>
+        <div class="slide-head">
+          <h3 class="slide-title"></h3>
+          <button class="btn ghost small play-scene" type="button">▶ Náhled</button>
+        </div>
         <label><span>Štítek <span class="muted small">(oranžový nad nadpisem)</span></span>
           <input data-field="tag" type="text" maxlength="60" />
         </label>
@@ -123,12 +170,12 @@
         <label><span>Text <span class="muted small">(&lt;strong&gt; = oranžově, &lt;s&gt; = přeškrtnout)</span></span>
           <textarea data-field="mainText" rows="3" maxlength="400"></textarea>
         </label>
+        <label><span>Voiceover <span class="muted small vo-est"></span></span>
+          <textarea data-field="voiceover" rows="2" maxlength="300"></textarea>
+        </label>
         <label><span>URL fotky na pozadí <span class="muted small">(nepovinné)</span></span>
           <input data-field="imageUrl" type="url" placeholder="prázdné = brandové pozadí" spellcheck="false" />
         </label>
-      </div>
-      <div class="preview">
-        <iframe title="Náhled snímku" tabindex="-1" loading="lazy"></iframe>
       </div>
     </article>
   </template>

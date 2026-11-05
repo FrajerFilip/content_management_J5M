@@ -3,241 +3,197 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=1080, height=1920, initial-scale=1" />
-  <title>Ještě 5 minut – snímek</title>
+  <title>Ještě 5 minut – animovaná šablona</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@500;700;800;900&display=swap" rel="stylesheet" />
   <style>
     /*
-     * Plátno 1080 x 1920 px (9:16), vizuál e-booku „Ještě 5 minut“.
-     * Bezpečné zóny pro TikTok / Instagram Reels:
-     *   - nahoře  ~260 px  (stavový řádek, záložky „Sledované / Pro vás“, název Reels)
-     *   - dole    ~480 px  (jméno účtu, popisek, hudba, ovládací lišta)
-     *   - vpravo  ~160 px  (sloupec ikon: like, komentáře, sdílení, avatar)
-     *   - vlevo   ~64 px   (okrajová rezerva)
-     * Veškerý text je umístěn výhradně uvnitř .safe-zone.
+     * Animovaná kompozice 1080 x 1920 px (9:16) ve vizuálu e-booku „Ještě 5 minut“.
      *
-     * Placeholdery (ve dvojitých složených závorkách): HEADING, MAIN_TEXT, IMAGE_URL, TAG, TYPE (hook | info | cta)
-     * V textech lze použít <strong> (oranžové zvýraznění) a <s> (přeškrtnutí jako na obálce).
+     * Šablona nemá vlastní časovač – stav se počítá deterministicky z času t:
+     *   R.setup(data)  připraví scény (texty, časování, slova voiceoveru pro titulky)
+     *   R.seek(t)      vykreslí přesný stav v čase t (s) – používá Puppeteer pro každý snímek
+     *   R.play()/pause() přehrávání v reálném čase – náhled ve webové aplikaci
+     *
+     * Bezpečné zóny TikTok / Reels: nahoře 260 px, dole 480 px, vpravo 160 px, vlevo 72 px.
+     * V textech lze použít <strong> (oranžově) a <s> (animované přeškrtnutí).
      */
     :root {
-      --w: 1080px;
-      --h: 1920px;
-      --safe-top: 260px;
-      --safe-bottom: 480px;
-      --safe-left: 72px;
-      --safe-right: 160px;
       --navy: #15213d;
       --navy-2: #1c2a4a;
       --orange: #ff6b2c;
       --text: #ffffff;
       --text-dim: #c9cfdc;
       --strike: #9aa3b5;
+      --safe-top: 260px;
+      --safe-bottom: 480px;
+      --safe-left: 72px;
+      --safe-right: 160px;
     }
 
     * { margin: 0; padding: 0; box-sizing: border-box; }
 
     html, body {
-      width: var(--w);
-      height: var(--h);
+      width: 1080px;
+      height: 1920px;
       overflow: hidden;
       background: var(--navy);
-      font-family: 'Inter', 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+      font-family: 'Inter', 'Segoe UI', Roboto, Arial, sans-serif;
       color: var(--text);
       -webkit-font-smoothing: antialiased;
     }
 
-    .canvas {
+    #stage {
       position: relative;
-      width: var(--w);
-      height: var(--h);
+      width: 1080px;
+      height: 1920px;
       overflow: hidden;
       background:
         radial-gradient(900px 700px at 85% 30%, rgba(255, 107, 44, 0.10) 0%, transparent 70%),
         linear-gradient(180deg, var(--navy-2) 0%, var(--navy) 100%);
     }
 
-    /* Volitelná fotka na pozadí, silně ztmavená do brandové modré */
-    .bg {
-      position: absolute;
-      inset: 0;
-      width: 100%;
-      height: 100%;
-      object-fit: cover;
-      opacity: 0.35;
-      filter: grayscale(0.4);
-    }
-    .bg + .tint {
-      position: absolute;
-      inset: 0;
-      background: linear-gradient(180deg, rgba(21, 33, 61, 0.55) 0%, rgba(21, 33, 61, 0.9) 70%, var(--navy) 100%);
-    }
+    .bgimg { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; opacity: 0; filter: grayscale(0.4); }
+    #bgtint { position: absolute; inset: 0; background: linear-gradient(180deg, rgba(21, 33, 61, 0.5) 0%, rgba(21, 33, 61, 0.88) 65%, var(--navy) 100%); opacity: 0; }
 
-    /* Velká pětka v pozadí – motiv z obálky e-booku */
-    .big-five {
+    #bigfive {
       position: absolute;
-      right: -170px;
-      top: 330px;
+      left: 470px;
+      top: 280px;
       font-size: 1500px;
       line-height: 1;
       font-weight: 900;
       letter-spacing: -0.06em;
-      color: rgba(255, 107, 44, 0.09);
-      user-select: none;
+      color: rgba(255, 107, 44, 0.085);
+      will-change: transform;
     }
 
-    .safe-zone {
+    .particle { position: absolute; left: 0; top: 0; border-radius: 50%; will-change: transform; }
+
+    #safe {
       position: absolute;
       top: var(--safe-top);
       bottom: var(--safe-bottom);
       left: var(--safe-left);
       right: var(--safe-right);
+    }
+
+    #brand { position: absolute; top: 0; left: 0; display: flex; align-items: center; gap: 18px; font-size: 40px; font-weight: 700; }
+    #brand svg { width: 58px; height: 72px; overflow: visible; }
+
+    #progress { position: absolute; top: 104px; left: 0; right: 0; display: flex; gap: 12px; }
+    #progress .seg { flex: 1; height: 8px; border-radius: 4px; background: rgba(255, 255, 255, 0.16); overflow: hidden; }
+    #progress .fill { height: 100%; width: 100%; background: var(--orange); transform-origin: left; transform: scaleX(0); }
+
+    .scene {
+      position: absolute;
+      left: 0;
+      right: 0;
+      top: 150px;
+      bottom: 0;
       display: flex;
       flex-direction: column;
+      justify-content: flex-end;
+      gap: 32px;
+      visibility: hidden;
     }
+    body.captions .scene { bottom: 200px; }
 
-    .brand {
-      display: flex;
-      align-items: center;
-      gap: 18px;
-      font-size: 40px;
-      font-weight: 700;
-      letter-spacing: -0.01em;
-    }
-    .brand svg { width: 58px; height: 72px; flex: none; }
-
-    .content {
-      margin-top: auto;
-      display: flex;
-      flex-direction: column;
-      gap: 40px;
-    }
-
-    .tag {
-      align-self: flex-start;
-      font-size: 32px;
-      font-weight: 700;
-      color: var(--orange);
-      letter-spacing: 0.01em;
-    }
+    .chap { font-size: 180px; line-height: 0.82; font-weight: 900; letter-spacing: -0.05em; color: var(--orange); transform-origin: left bottom; }
+    .tag { font-size: 32px; font-weight: 700; color: var(--orange); }
     .tag:empty { display: none; }
 
-    .heading {
-      font-size: 108px;
-      line-height: 1.02;
-      font-weight: 900;
-      letter-spacing: -0.035em;
-      word-wrap: break-word;
-      hyphens: manual;
-    }
-
-    strong { color: var(--orange); font-weight: inherit; }
-    .main-text strong { font-weight: 700; }
-    s {
-      color: var(--strike);
-      text-decoration: line-through;
-      text-decoration-color: var(--orange);
-      text-decoration-thickness: 0.09em;
-    }
-
-    .main-text {
-      font-size: 50px;
-      line-height: 1.38;
-      font-weight: 500;
-      color: var(--text-dim);
-      padding-left: 34px;
-      border-left: 8px solid var(--orange);
-    }
-    .main-text:empty { display: none; }
-
-    /* Fakta o e-booku (jen CTA) */
-    .facts {
-      display: none;
-      flex-wrap: wrap;
-      gap: 14px 34px;
-      font-size: 32px;
-      font-weight: 500;
-      color: var(--text-dim);
-    }
-    .facts span { display: inline-flex; align-items: center; gap: 14px; }
-    .facts span::before {
-      content: '';
-      width: 14px;
-      height: 14px;
-      border-radius: 50%;
+    .heading { font-size: 96px; line-height: 1.04; font-weight: 900; letter-spacing: -0.035em; }
+    .scene.hook .heading { font-size: 106px; }
+    .w { display: inline-block; white-space: pre; will-change: transform, opacity; transform-origin: 50% 90%; }
+    .w.hl { color: var(--orange); }
+    .w.st { position: relative; color: var(--strike); }
+    .w.st .line {
+      position: absolute;
+      left: -3%;
+      top: 52%;
+      width: 106%;
+      height: 0.09em;
       background: var(--orange);
+      transform-origin: left center;
+      transform: scaleX(0);
     }
 
-    /* Mockup obálky e-booku (jen CTA) */
+    .main { position: relative; padding-left: 34px; font-size: 46px; line-height: 1.38; font-weight: 500; color: var(--text-dim); }
+    .main .bar { position: absolute; left: 0; top: 0; bottom: 0; width: 8px; background: var(--orange); transform-origin: top; transform: scaleY(0); }
+    .main .txt { display: block; }
+    .main strong { color: var(--orange); font-weight: 700; }
+
+    /* CTA */
+    .scene.cta { gap: 28px; }
+    .cta-row { display: grid; grid-template-columns: 240px minmax(0, 1fr); column-gap: 40px; align-items: end; }
+    .cta-row .heading { font-size: 92px; }
+    .scene.cta .main { font-size: 40px; }
     .cover {
-      display: none;
       position: relative;
-      align-self: flex-start;
-      width: 330px;
-      height: 466px;
-      padding: 34px 30px;
+      width: 240px;
+      height: 340px;
+      padding: 26px 22px;
       border-radius: 14px 22px 22px 14px;
       background: var(--navy);
-      border: 2px solid rgba(255, 255, 255, 0.12);
+      border: 2px solid rgba(255, 255, 255, 0.14);
       box-shadow: -14px 0 0 -6px #0e172c, 0 40px 80px rgba(0, 0, 0, 0.45);
-      transform: rotate(-4deg);
       overflow: hidden;
+      will-change: transform;
     }
-    .cover .c-brand { display: flex; align-items: center; gap: 8px; font-size: 16px; font-weight: 700; }
-    .cover .c-brand svg { width: 18px; height: 22px; }
-    .cover .c-five {
-      position: absolute;
-      right: -70px;
-      top: 70px;
-      font-size: 520px;
-      font-weight: 900;
-      line-height: 1;
-      color: rgba(255, 107, 44, 0.16);
+    .cover .c-five { position: absolute; right: -60px; top: 54px; font-size: 430px; font-weight: 900; line-height: 1; color: rgba(255, 107, 44, 0.16); }
+    .cover .c-brand { position: relative; display: flex; align-items: center; gap: 8px; font-size: 15px; font-weight: 700; }
+    .cover .c-brand svg { width: 17px; height: 21px; }
+    .cover .c-title { position: relative; margin-top: 44px; font-size: 45px; line-height: 0.98; font-weight: 900; letter-spacing: -0.04em; }
+    .cover .c-title s { color: var(--strike); text-decoration-color: var(--orange); text-decoration-thickness: 0.09em; }
+    .cover .c-title b { color: var(--orange); }
+    .cover .c-sub { position: relative; margin-top: 16px; font-size: 15px; line-height: 1.25; font-weight: 700; }
+    .facts { display: flex; flex-wrap: wrap; gap: 12px 28px; font-size: 30px; font-weight: 600; color: var(--text-dim); }
+    .facts span { display: inline-flex; align-items: center; gap: 12px; will-change: transform; }
+    .facts span::before { content: ''; width: 14px; height: 14px; border-radius: 50%; background: var(--orange); }
+    .bio {
+      align-self: flex-start;
+      display: inline-flex;
+      align-items: center;
+      gap: 16px;
+      padding: 16px 30px;
+      border-radius: 999px;
+      background: var(--orange);
+      color: #fff;
+      font-size: 36px;
+      font-weight: 800;
+      will-change: transform;
     }
-    .cover .c-title {
-      position: relative;
-      margin-top: 70px;
-      font-size: 62px;
-      line-height: 0.98;
-      font-weight: 900;
-      letter-spacing: -0.04em;
-    }
-    .cover .c-title s { color: var(--strike); }
-    .cover .c-title strong { color: var(--orange); }
-    .cover .c-sub {
-      position: relative;
-      margin-top: 22px;
-      font-size: 19px;
-      line-height: 1.25;
-      font-weight: 700;
-    }
+    .bio .arrow { display: inline-block; will-change: transform; }
 
-    /* Varianta CTA – obálka vlevo, nadpis vpravo */
-    body.cta .content {
-      display: grid;
-      grid-template-columns: 290px minmax(0, 1fr);
-      column-gap: 48px;
-      row-gap: 34px;
-      align-items: end;
+    /* Titulky voiceoveru */
+    #captions { position: absolute; left: -20px; right: -20px; bottom: 0; height: 170px; display: none; align-items: center; justify-content: center; }
+    body.captions #captions { display: flex; }
+    #capbox {
+      max-width: 100%;
+      padding: 16px 30px;
+      border-radius: 26px;
+      background: rgba(9, 14, 28, 0.78);
+      font-size: 52px;
+      line-height: 1.18;
+      font-weight: 800;
+      text-align: center;
+      letter-spacing: -0.01em;
+      opacity: 0;
+      will-change: transform, opacity;
     }
-    body.cta .cover { display: block; grid-column: 1; grid-row: 1 / span 2; width: 290px; height: 410px; }
-    body.cta .cover .c-title { margin-top: 56px; font-size: 54px; }
-    body.cta .cover .c-sub { font-size: 17px; }
-    body.cta .tag { grid-column: 2; grid-row: 1; }
-    body.cta .heading { grid-column: 2; grid-row: 2; font-size: 104px; }
-    body.cta .main-text, body.cta .facts { grid-column: 1 / -1; }
-    body.cta .facts { display: flex; }
-    body.cta .big-five { opacity: 0.6; }
+    #capbox .cw { display: inline-block; white-space: pre; }
+    #capbox .cw.on { color: var(--orange); }
 
-    /* Varianta HOOK – větší nadpis */
-    body.hook .heading { font-size: 116px; }
+    /* Přechod mezi scénami */
+    .wipe { position: absolute; top: -300px; bottom: -300px; left: 0; width: 1500px; will-change: transform; transform: translateX(-3000px); }
+    #wipeA { background: var(--orange); }
+    #wipeB { background: var(--navy-2); }
 
-    /* Vizualizace bezpečných zón – zapnout třídou „debug“ na elementu body */
-    body.debug .safe-zone {
-      outline: 10px dashed #00ff9c;
-      background: rgba(0, 255, 156, 0.08);
-    }
-    body.debug .canvas::after {
+    /* Ladění bezpečných zón: R.setup({..., debug: true}) */
+    body.debug #safe { outline: 10px dashed #00ff9c; background: rgba(0, 255, 156, 0.06); }
+    body.debug #stage::after {
       content: '';
       position: absolute;
       inset: 0;
@@ -249,45 +205,442 @@
     }
   </style>
 </head>
-<body class="{{TYPE}}">
-  <div class="canvas">
-    <img class="bg" src="{{IMAGE_URL}}" alt="" onerror="this.remove()" />
-    <div class="tint"></div>
-    <div class="big-five" aria-hidden="true">5</div>
+<body>
+  <div id="stage">
+    <div id="bgimgs"></div>
+    <div id="bgtint"></div>
+    <div id="bigfive">5</div>
+    <div id="particles"></div>
 
-    <main class="safe-zone">
-      <div class="brand">
+    <div id="safe">
+      <div id="brand">
         <svg viewBox="0 0 58 72" aria-hidden="true">
           <g fill="none" stroke="#ff6b2c" stroke-width="6" stroke-linecap="round" stroke-linejoin="round">
             <path d="M46 6H14l-3 24" />
             <path d="M11 30a22 22 0 1 1 -2 30" />
-            <path d="M29 38v12l8 5" stroke-width="5" />
+            <path id="handM" d="M26 46V37" stroke-width="5" />
+            <path id="handH" d="M26 46l6 4" stroke-width="5" />
           </g>
         </svg>
         Ještě 5 minut
       </div>
+      <div id="progress"></div>
+      <div id="scenes"></div>
+      <div id="captions"><div id="capbox"></div></div>
+    </div>
 
-      <div class="content">
-        <div class="cover" aria-hidden="true">
-          <div class="c-five">5</div>
-          <div class="c-brand">
-            <svg viewBox="0 0 58 72"><g fill="none" stroke="#ff6b2c" stroke-width="7" stroke-linecap="round" stroke-linejoin="round"><path d="M46 6H14l-3 24" /><path d="M11 30a22 22 0 1 1 -2 30" /></g></svg>
-            Ještě 5 minut
-          </div>
-          <div class="c-title">Začnu<br /><s>zítra.</s><br /><strong>teď.</strong></div>
-          <div class="c-sub">Přestaň se učit noc před zkouškou.</div>
-        </div>
-
-        <div class="tag">{{TAG}}</div>
-        <h1 class="heading">{{HEADING}}</h1>
-        <p class="main-text">{{MAIN_TEXT}}</p>
-        <div class="facts">
-          <span>8 kapitol</span>
-          <span>5 minut čtení</span>
-          <span>1 úkol na konci</span>
-        </div>
-      </div>
-    </main>
+    <div id="wipeB" class="wipe"></div>
+    <div id="wipeA" class="wipe"></div>
   </div>
+
+  <script>
+    'use strict';
+    (function () {
+      // ------------------------------------------------------------------
+      // Pomocné funkce
+      // ------------------------------------------------------------------
+      const clamp = (x, a = 0, b = 1) => Math.min(b, Math.max(a, x));
+      const lerp = (a, b, k) => a + (b - a) * k;
+      const E = {
+        out: (k) => 1 - Math.pow(1 - k, 3),
+        inOut: (k) => (k < 0.5 ? 4 * k * k * k : 1 - Math.pow(-2 * k + 2, 3) / 2),
+        back: (k) => { const c1 = 1.9, c3 = c1 + 1; return 1 + c3 * Math.pow(k - 1, 3) + c1 * Math.pow(k - 1, 2); },
+        lin: (k) => k,
+      };
+      // průběh 0..1 animace, která začíná v čase `start` a trvá `dur`
+      const P = (t, start, dur, fn = E.out) => fn(clamp((t - start) / dur));
+      const $ = (sel, root = document) => root.querySelector(sel);
+
+      // Stejná pravidla jako v index.js: escapování + povolené tagy + česká typografie
+      function sanitize(text) {
+        return String(text ?? '')
+          .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')
+          .replace(/&lt;(\/?)(strong|em|s|br)\s*\/?&gt;/gi, '<$1$2>')
+          .replace(/\n/g, '<br>')
+          .replace(/(^|[\s>(„])([kvszouaiKVSZOUAI]) +/g, '$1$2 ')
+          .replace(/(^|[\s>(„])([kvszouaiKVSZOUAI]) +/g, '$1$2 ');
+      }
+
+      const plain = (html) => String(html || '').replace(/<[^>]*>/g, '').replace(/\s+/g, ' ').trim();
+      const escText = (s) => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;');
+
+      // Rozdělí bohatý text na slova se značkami (hl = <strong>, st = <s>)
+      function tokens(html) {
+        const box = document.createElement('div');
+        box.innerHTML = sanitize(html);
+        const out = [];
+        (function walk(node, flags) {
+          node.childNodes.forEach((n) => {
+            if (n.nodeType === 3) {
+              n.textContent.split(/ +/).forEach((w) => { if (w) out.push({ w, ...flags }); });
+            } else if (n.nodeName === 'BR') {
+              out.push({ br: true });
+            } else {
+              walk(n, {
+                hl: flags.hl || n.nodeName === 'STRONG' || n.nodeName === 'EM',
+                st: flags.st || n.nodeName === 'S',
+              });
+            }
+          });
+        })(box, { hl: false, st: false });
+        return out;
+      }
+
+      function wordsHtml(html) {
+        return tokens(html).map((t) => {
+          if (t.br) return '<br>';
+          const cls = ['w', t.hl ? 'hl' : '', t.st ? 'st' : ''].join(' ').trim();
+          return `<span class="${cls}">${escText(t.w)}${t.st ? '<i class="line"></i>' : ''}</span>`;
+        }).join(' ');
+      }
+
+      // Deterministický pseudonáhodný generátor (stejné částice v každém snímku)
+      function rng(seed) {
+        return () => { seed = (seed * 1664525 + 1013904223) % 4294967296; return seed / 4294967296; };
+      }
+
+      // ------------------------------------------------------------------
+      // Časování scén (sdílí index.js přes R.buildTimeline)
+      // ------------------------------------------------------------------
+      const LEAD = 0.35, TAIL = 0.4, CTA_HOLD = 0.6, MIN_SCENE = 3.2, T_MIN = 15, T_MAX = 20, MAX_TEMPO = 1.25;
+      const voiceText = (s) => plain(s.voiceover) || `${plain(s.heading)}. ${plain(s.mainText)}`;
+
+      function estimateWords(text, voiceStart, dur) {
+        const words = plain(text).split(/\s+/).filter(Boolean);
+        const weight = (w) => w.replace(/[^\p{L}\p{N}]/gu, '').length + 2 + (/[.!?…]$/.test(w) ? 6 : /[,;:–]$/.test(w) ? 3 : 0);
+        const total = words.reduce((s, w) => s + weight(w), 0) || 1;
+        let acc = 0;
+        return words.map((w) => {
+          const s = voiceStart + (acc / total) * dur;
+          acc += weight(w);
+          return { w, s, e: voiceStart + (acc / total) * dur };
+        });
+      }
+
+      // Odhad pro náhled v prohlížeči (~15,5 znaku za sekundu české řeči)
+      function estimateTimeline(slides, opts = {}) {
+        const speed = Number(opts.speed) || 1;
+        const voices = slides.map((s) => ({ duration: Math.max(1.2, voiceText(s).length / 15.5 / speed), words: null }));
+        return buildTimeline(slides, voices);
+      }
+
+      // voices: [{duration, words: [{w, s, e}] relativně k začátku audia | null}]
+      function buildTimeline(slides, voices) {
+        const n = slides.length;
+        const fixed = n * (LEAD + TAIL) + CTA_HOLD;
+        const vsum = voices.reduce((s, v) => s + v.duration, 0);
+        const tempo = fixed + vsum > T_MAX ? Math.min(MAX_TEMPO, vsum / (T_MAX - fixed)) : 1;
+        const scenes = slides.map((s, i) => {
+          const vd = voices[i].duration / tempo;
+          const duration = Math.max(MIN_SCENE, LEAD + vd + TAIL + (i === n - 1 ? CTA_HOLD : 0));
+          return { ...s, voiceDuration: vd, duration };
+        });
+        const total0 = scenes.reduce((s, x) => s + x.duration, 0);
+        const extra = total0 < T_MIN ? (T_MIN - total0) / n : 0;
+        let t = 0;
+        scenes.forEach((sc, i) => {
+          sc.duration += extra;
+          sc.start = t;
+          sc.voiceStart = t + LEAD;
+          const w = voices[i].words;
+          sc.words = w && w.length
+            ? w.map((x) => ({ w: x.w, s: sc.voiceStart + x.s / tempo, e: sc.voiceStart + x.e / tempo }))
+            : estimateWords(voiceText(sc), sc.voiceStart, sc.voiceDuration);
+          t += sc.duration;
+        });
+        return { scenes, duration: t, tempo };
+      }
+
+      // ------------------------------------------------------------------
+      // Stavba DOM
+      // ------------------------------------------------------------------
+      let D = null;
+      const S = [];
+      let phrases = [];
+      let particles = [];
+
+      const LOGO = '<svg viewBox="0 0 58 72"><g fill="none" stroke="#ff6b2c" stroke-width="7" stroke-linecap="round" stroke-linejoin="round"><path d="M46 6H14l-3 24"/><path d="M11 30a22 22 0 1 1 -2 30"/></g></svg>';
+
+      function buildScene(sc, i) {
+        const el = document.createElement('section');
+        el.className = `scene ${sc.type}`;
+        const chap = (String(sc.tag || '').match(/kapitola\s*(\d{1,2})/i) || [])[1];
+        const head = `<h1 class="heading">${wordsHtml(sc.heading)}</h1>`;
+        const main = plain(sc.mainText)
+          ? `<p class="main"><i class="bar"></i><span class="txt">${sanitize(sc.mainText)}</span></p>` : '';
+        const tag = `<div class="tag">${sanitize(sc.tag || '')}</div>`;
+
+        if (sc.type === 'cta') {
+          el.innerHTML = `${tag}
+            <div class="cta-row">
+              <div class="cover">
+                <div class="c-five">5</div>
+                <div class="c-brand">${LOGO} Ještě 5 minut</div>
+                <div class="c-title">Začnu<br><s>zítra.</s><br><b>teď.</b></div>
+                <div class="c-sub">Přestaň se učit noc před zkouškou.</div>
+              </div>
+              ${head}
+            </div>
+            ${main}
+            <div class="facts"><span>8 kapitol</span><span>5 minut čtení</span><span>1 úkol na konci</span></div>
+            <div class="bio"><span class="arrow">↑</span> Odkaz v biu</div>`;
+        } else {
+          el.innerHTML = `${chap ? `<div class="chap">${chap.padStart(2, '0')}</div>` : ''}${tag}${head}${main}`;
+        }
+        $('#scenes').appendChild(el);
+
+        const words = [...el.querySelectorAll('.heading .w')];
+        S[i] = {
+          el,
+          chap: $('.chap', el),
+          tag: $('.tag', el),
+          words,
+          lines: words.map((w) => $('.line', w)),
+          main: $('.main', el),
+          bar: $('.main .bar', el),
+          txt: $('.main .txt', el),
+          cover: $('.cover', el),
+          facts: [...el.querySelectorAll('.facts span')],
+          bio: $('.bio', el),
+          arrow: $('.bio .arrow', el),
+          img: null,
+        };
+
+        if (/^https?:\/\//i.test(sc.imageUrl || '')) {
+          const img = new Image();
+          img.className = 'bgimg';
+          img.src = sc.imageUrl;
+          img.onerror = () => { img.remove(); S[i].img = null; };
+          $('#bgimgs').appendChild(img);
+          S[i].img = img;
+        }
+      }
+
+      function buildCaptions() {
+        phrases = [];
+        D.scenes.forEach((sc) => {
+          let cur = [];
+          (sc.words || []).forEach((w, k) => {
+            cur.push(w);
+            const end = /[.!?…,;:–]$/.test(w.w) || cur.length >= 4 || k === sc.words.length - 1;
+            if (end) { phrases.push({ words: cur, sceneEnd: sc.start + sc.duration }); cur = []; }
+          });
+        });
+        phrases.forEach((p) => { p.s = p.words[0].s - 0.05; });
+        phrases.forEach((p, k) => {
+          const next = phrases[k + 1];
+          p.e = Math.min(p.sceneEnd - 0.05, next ? next.s : Infinity, p.words[p.words.length - 1].e + 0.6);
+          p.html = p.words.map((w) => `<span class="cw">${escText(w.w)}</span>`).join(' ');
+        });
+      }
+
+      function buildParticles() {
+        const r = rng(5);
+        const box = $('#particles');
+        box.innerHTML = '';
+        particles = Array.from({ length: 22 }, () => {
+          const size = 6 + r() * 16;
+          const el = document.createElement('div');
+          el.className = 'particle';
+          el.style.width = el.style.height = `${size}px`;
+          el.style.background = r() < 0.55 ? `rgba(255,107,44,${0.18 + r() * 0.3})` : `rgba(255,255,255,${0.06 + r() * 0.12})`;
+          box.appendChild(el);
+          return { el, x: r() * 1080, y: r() * 2000, speed: 20 + r() * 50, amp: 10 + r() * 30, ph: r() * 6.28 };
+        });
+      }
+
+      async function setup(data) {
+        D = data;
+        document.body.className = [data.captions !== false ? 'captions' : '', data.debug ? 'debug' : ''].join(' ').trim();
+        $('#scenes').innerHTML = '';
+        $('#bgimgs').innerHTML = '';
+        $('#capbox').dataset.k = '';
+        S.length = 0;
+        D.scenes.forEach(buildScene);
+        $('#progress').innerHTML = D.scenes.map(() => '<div class="seg"><div class="fill"></div></div>').join('');
+        buildCaptions();
+        buildParticles();
+
+        // počkej na fonty a obrázky (max. 15 s), ať je první snímek hotový
+        const imgs = [...document.images].filter((img) => !img.complete)
+          .map((img) => new Promise((res) => { img.addEventListener('load', res); img.addEventListener('error', res); }));
+        await Promise.race([
+          Promise.all([document.fonts.ready, ...imgs]),
+          new Promise((res) => setTimeout(res, 15000)),
+        ]);
+        seek(0);
+        return { duration: D.duration };
+      }
+
+      // ------------------------------------------------------------------
+      // Vykreslení stavu v čase t
+      // ------------------------------------------------------------------
+      function setT(el, transform, opacity) {
+        if (!el) return;
+        el.style.transform = transform;
+        if (opacity !== undefined) el.style.opacity = opacity;
+      }
+
+      function seekScene(i, t) {
+        const sc = D.scenes[i];
+        const s = S[i];
+        const lt = t - sc.start;
+        const isLast = i === D.scenes.length - 1;
+        const visible = t >= sc.start && (t < sc.start + sc.duration || isLast);
+        s.el.style.visibility = visible ? 'visible' : 'hidden';
+
+        if (s.img) {
+          const k = clamp(lt / sc.duration);
+          s.img.style.opacity = visible ? 0.38 : 0;
+          s.img.style.transform = `scale(${1.06 + 0.1 * k}) translateY(${-20 * k}px)`;
+        }
+        if (!visible) return;
+
+        const exit = isLast ? 0 : P(t, sc.start + sc.duration - 0.32, 0.3, E.inOut);
+        s.el.style.transform = `translateY(${-50 * exit}px)`;
+        s.el.style.opacity = 1 - exit;
+
+        let k;
+        if (s.chap) {
+          k = P(lt, 0.05, 0.55, E.back);
+          setT(s.chap, `translateY(${(1 - clamp(k)) * 40}px) scale(${lerp(0.6, 1, k)})`, clamp(k * 1.4));
+        }
+        k = P(lt, 0.12, 0.45);
+        setT(s.tag, `translateX(${(1 - k) * -60}px)`, k);
+
+        // nadpis – slova postupně
+        const hook = sc.type === 'hook';
+        const t0 = s.chap ? 0.32 : 0.2;
+        const step = Math.min(0.07, 0.9 / Math.max(1, s.words.length));
+        s.words.forEach((w, j) => {
+          const st = t0 + j * step;
+          const a = P(lt, st, 0.42, hook ? E.back : E.out);
+          const o = P(lt, st, 0.25);
+          const bump = w.classList.contains('hl') ? Math.sin(Math.PI * P(lt, st + 0.45, 0.35, E.lin)) * 0.1 : 0;
+          const base = hook ? lerp(1.18, 1, a) : 1;
+          setT(w, `translateY(${(1 - a) * 70}px) scale(${base + bump})`, o);
+          if (s.lines[j]) s.lines[j].style.transform = `scaleX(${P(lt, st + 0.55, 0.38, E.inOut)})`;
+        });
+        const hEnd = t0 + s.words.length * step + 0.3;
+
+        // hlavní text
+        if (s.main) {
+          s.bar.style.transform = `scaleY(${P(lt, hEnd, 0.4, E.inOut)})`;
+          k = P(lt, hEnd + 0.12, 0.5);
+          setT(s.txt, `translateY(${(1 - k) * 34}px)`, k);
+        }
+
+        // CTA prvky
+        if (s.cover) {
+          const c = P(lt, 0.0, 0.8, E.back);
+          const bob = Math.sin(lt * 2.2) * 8 * P(lt, 0.8, 0.5);
+          setT(s.cover, `perspective(900px) translateX(${(1 - c) * -320}px) translateY(${bob}px) rotateY(${(1 - clamp(c)) * 55}deg) rotate(${lerp(-16, -4, c)}deg)`, clamp(c * 1.5));
+          s.facts.forEach((f, j) => {
+            const a = P(lt, hEnd + 0.4 + j * 0.14, 0.4, E.back);
+            setT(f, `scale(${lerp(0.4, 1, a)})`, clamp(a * 1.5));
+          });
+          const b = P(lt, hEnd + 0.9, 0.5, E.back);
+          const wave = Math.sin(Math.max(0, lt - hEnd - 1.4) * 6);
+          setT(s.bio, `scale(${lerp(0.3, 1, b) * (1 + 0.035 * wave)})`, clamp(b * 1.5));
+          s.bio.style.boxShadow = `0 0 ${24 + 16 * wave}px rgba(255,107,44,${0.45 + 0.2 * wave})`;
+          s.arrow.style.transform = `translateY(${-Math.abs(Math.sin(lt * 4)) * 10}px)`;
+        }
+      }
+
+      function seekCaptions(t) {
+        const box = $('#capbox');
+        if (D.captions === false) return;
+        const k = phrases.findIndex((p) => t >= p.s && t < p.e);
+        if (k === -1) { box.style.opacity = 0; return; }
+        const p = phrases[k];
+        if (box.dataset.k !== String(k)) { box.innerHTML = p.html; box.dataset.k = String(k); }
+        const a = P(t, p.s, 0.18, E.back);
+        const out = P(t, p.e - 0.12, 0.12);
+        box.style.opacity = clamp(a * 1.5) * (1 - out);
+        box.style.transform = `translateY(${(1 - clamp(a)) * 20}px) scale(${lerp(0.85, 1, a)})`;
+        [...box.children].forEach((el, j) => {
+          const w = p.words[j];
+          const on = t >= w.s && t < (p.words[j + 1] ? p.words[j + 1].s : p.e);
+          el.classList.toggle('on', on);
+          el.style.transform = on ? `scale(${1 + 0.08 * (1 - P(t, w.s, 0.2))})` : 'none';
+        });
+      }
+
+      function seek(t) {
+        if (!D) return;
+        t = clamp(t, 0, D.duration);
+
+        // pozadí: plovoucí pětka a částice
+        setT($('#bigfive'), `translate(${Math.sin(t * 0.35) * 40 - t * 4}px, ${Math.cos(t * 0.27) * 30 - t * 5}px) rotate(${Math.sin(t * 0.22) * 4}deg) scale(${1 + 0.03 * Math.sin(t * 0.5)})`);
+        particles.forEach((p) => {
+          const y = ((p.y - t * p.speed) % 2000 + 2000) % 2000 - 40;
+          const x = p.x + Math.sin(t * 0.8 + p.ph) * p.amp;
+          p.el.style.transform = `translate(${x}px, ${y}px)`;
+        });
+
+        // tikající hodiny v logu
+        $('#handM').setAttribute('transform', `rotate(${t * 120} 26 46)`);
+        $('#handH').setAttribute('transform', `rotate(${t * 10} 26 46)`);
+
+        // ukazatel průběhu
+        document.querySelectorAll('#progress .fill').forEach((f, i) => {
+          const sc = D.scenes[i];
+          f.style.transform = `scaleX(${clamp((t - sc.start) / sc.duration)})`;
+        });
+
+        $('#bgtint').style.opacity = S.some((s) => s.img) ? 1 : 0;
+        D.scenes.forEach((_, i) => seekScene(i, t));
+        seekCaptions(t);
+
+        // přechod: oranžový a modrý pruh přes obraz kolem hranice scén
+        let wx = -3000;
+        D.scenes.slice(1).forEach((sc) => {
+          const u = (t - (sc.start - 0.3)) / 0.6;
+          if (u >= 0 && u <= 1) wx = lerp(-1700, 1400, E.inOut(u));
+        });
+        setT($('#wipeA'), `translateX(${wx}px) skewX(-14deg)`);
+        setT($('#wipeB'), `translateX(${wx - 260}px) skewX(-14deg)`);
+      }
+
+      // ------------------------------------------------------------------
+      // Přehrávání v reálném čase (náhled ve webové aplikaci)
+      // ------------------------------------------------------------------
+      let raf = 0, playFrom = 0, playStart = 0, current = 0, onTime = null;
+      function frame(now) {
+        current = playFrom + (now - playStart) / 1000;
+        if (current >= D.duration) {
+          current = D.duration;
+          seek(current);
+          raf = 0;
+          if (onTime) onTime(current, false);
+          return;
+        }
+        seek(current);
+        if (onTime) onTime(current, true);
+        raf = requestAnimationFrame(frame);
+      }
+      function play(from = current) {
+        if (!D) return;
+        cancelAnimationFrame(raf);
+        playFrom = from >= D.duration - 0.05 ? 0 : from;
+        playStart = performance.now();
+        raf = requestAnimationFrame(frame);
+      }
+      function pause() { cancelAnimationFrame(raf); raf = 0; if (onTime) onTime(current, false); }
+
+      window.R = {
+        setup,
+        seek: (t) => { current = t; seek(t); },
+        play,
+        pause,
+        isPlaying: () => raf !== 0,
+        onTime: (fn) => { onTime = fn; },
+        estimateTimeline,
+        buildTimeline,
+        voiceText,
+        get duration() { return D ? D.duration : 0; },
+      };
+    })();
+  </script>
 </body>
 </html>

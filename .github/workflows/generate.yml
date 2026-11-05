@@ -6,11 +6,15 @@ run-name: "Generate video ${{ inputs.request_id || github.event.client_payload.r
 on:
   # Ruční spuštění z GitHub UI (záložka Actions) nebo z webové aplikace přes API:
   #   POST /repos/<owner>/<repo>/actions/workflows/generate.yml/dispatches
-  #   body: {"ref": "<branch>", "inputs": {"slides": "<JSON>", "request_id": "abc"}}
+  #   body: {"ref": "main", "inputs": {"slides": "<JSON>", "options": "<JSON>", "request_id": "abc"}}
   workflow_dispatch:
     inputs:
       slides:
-        description: "JSON pole 4 snímků [{heading, mainText, imageUrl}] – prázdné = testovací data"
+        description: "JSON pole 4 snímků [{tag, heading, mainText, voiceover, imageUrl}] – prázdné = výchozí scénář"
+        required: false
+        default: ""
+      options:
+        description: 'Nastavení, např. {"voice":"auto","speed":1,"music":true,"captions":true} – voice: auto | piper | elevenlabs | openai | none'
         required: false
         default: ""
       request_id:
@@ -20,14 +24,16 @@ on:
 
   # Spuštění přes webhook / REST API:
   #   POST /repos/<owner>/<repo>/dispatches
-  #   body: {"event_type": "generate-video", "client_payload": {"slides": [...], "request_id": "abc"}}
+  #   body: {"event_type": "generate-video", "client_payload": {"slides": [...], "options": {...}, "request_id": "abc"}}
   repository_dispatch:
     types: [generate-video]
 
   # Po změně webu / šablony / skriptu se web znovu nasadí (s ukázkovým videem)
   push:
+    branches: [main]
     paths:
       - "web/**"
+      - "lib/**"
       - "template.html"
       - "presets.json"
       - "index.js"
@@ -45,7 +51,10 @@ concurrency:
 jobs:
   generate:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 30
+    env:
+      PIPER_VOICE: cs_CZ-jirka-medium
+      PIPER_DATA_DIR: ${{ github.workspace }}/voices
 
     steps:
       - name: Checkout kódu
@@ -65,11 +74,38 @@ jobs:
       - name: Instalace NPM závislostí
         run: npm install --no-audit --no-fund
 
+      - name: Nastavení Pythonu (hlas Piper)
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Instalace Piper TTS
+        run: pip install --disable-pip-version-check piper-tts
+
+      - name: Mezipaměť hlasového modelu
+        uses: actions/cache@v4
+        with:
+          path: voices
+          key: piper-${{ env.PIPER_VOICE }}-v1
+
+      - name: Stažení českého hlasu
+        run: |
+          if [ ! -f "voices/${PIPER_VOICE}.onnx" ]; then
+            python -m piper.download_voices --download-dir voices "${PIPER_VOICE}"
+          fi
+          ls -la voices
+
       - name: Spuštění generátoru
         env:
           # Data jdou přes proměnné prostředí (ne přímo do shellu) – bezpečné vůči injekci
           SLIDES_JSON: ${{ inputs.slides || toJson(github.event.client_payload.slides) }}
+          OPTIONS_JSON: ${{ inputs.options || toJson(github.event.client_payload.options) }}
           REQUEST_ID: ${{ inputs.request_id || github.event.client_payload.request_id }}
+          # Volitelné prémiové hlasy – stačí přidat v Settings → Secrets and variables → Actions
+          ELEVENLABS_API_KEY: ${{ secrets.ELEVENLABS_API_KEY }}
+          ELEVENLABS_VOICE_ID: ${{ vars.ELEVENLABS_VOICE_ID }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          OPENAI_TTS_VOICE: ${{ vars.OPENAI_TTS_VOICE }}
         run: node index.js
 
       - name: Nahrání videa jako artefaktu
@@ -86,7 +122,7 @@ jobs:
           cp -r web/. _site/
           cp template.html _site/template.html
           cp presets.json _site/presets.json
-          cp output/reels-output.mp4 _site/videos/reels-output.mp4
+          cp output/reels-output.mp4 output/cover.jpg output/captions.srt _site/videos/
           cp output/latest.json _site/latest.json
 
       - name: Nahrání webu pro GitHub Pages

@@ -7,10 +7,11 @@ const WORKFLOW_FILE = 'generate.yml';
 const FALLBACK_REPO = { owner: 'FrajerFilip', repo: 'content_management_J5M' };
 const LABELS = ['Hook', 'Info 1', 'Info 2', 'Výzva k akci'];
 const TYPES = ['hook', 'info', 'info', 'cta'];
-const STORAGE = { draft: 'reels.draft.v2', conn: 'reels.conn', token: 'reels.token' };
+const STORAGE = { draft: 'reels.draft.v3', conn: 'reels.conn', token: 'reels.token', options: 'reels.options' };
+const DEFAULT_OPTIONS = { voice: 'auto', speed: 1, music: true, captions: true };
 
 let PRESETS = null; // načte se z presets.json
-const defaultSlides = () => structuredClone(PRESETS.scenarios[0].slides);
+let slides = [];
 
 const $ = (id) => document.getElementById(id);
 
@@ -21,49 +22,143 @@ const store = {
   del(key) { try { localStorage.removeItem(key); } catch { /* ignore */ } },
 };
 
-// ---------------------------------------------------------------------------
-// Šablona – stejná logika dosazení jako v index.js
-// ---------------------------------------------------------------------------
-let template = '';
-let slides = [];
-
-function sanitize(text) {
-  return String(text ?? '')
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/&lt;(\/?)(strong|em|s|br)\s*\/?&gt;/gi, '<$1$2>')
-    .replace(/\n/g, '<br>')
-    // česká typografie: jednopísmenné předložky/spojky nezůstanou na konci řádku
-    .replace(/(^|[\s>(„])([kvszouaiKVSZOUAI]) +/g, '$1$2\u00A0')
-    .replace(/(^|[\s>(„])([kvszouaiKVSZOUAI]) +/g, '$1$2\u00A0');
+const escapeHtml = (s) => String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+function richHtml(text) {
+  return escapeHtml(text).replace(/&lt;(\/?)(strong|em|s|br)\s*\/?&gt;/gi, '<$1$2>');
 }
-
-function renderTemplate(slide, i, debug) {
-  const url = /^https?:\/\//i.test(slide.imageUrl || '') ? slide.imageUrl : '';
-  let html = template
-    .replace(/{{HEADING}}/g, sanitize(slide.heading))
-    .replace(/{{MAIN_TEXT}}/g, sanitize(slide.mainText))
-    .replace(/{{IMAGE_URL}}/g, url.replace(/&/g, '&amp;').replace(/"/g, '&quot;'))
-    .replace(/{{TAG}}/g, sanitize(slide.tag))
-    .replace(/{{TYPE}}/g, TYPES[i] + (debug ? ' debug' : ''));
-  return html;
-}
+const plain = (html) => String(html || '').replace(/<[^>]*>/g, '').replace(/\s+/g, ' ').trim();
+const fmt = (n) => n.toFixed(1).replace('.', ',');
 
 function loadDraft() {
   try {
     const d = JSON.parse(store.get(STORAGE.draft));
     if (Array.isArray(d) && d.length === 4) return d;
   } catch { /* ignore */ }
-  return defaultSlides();
+  return structuredClone(PRESETS.scenarios[0].slides);
+}
+
+const typedSlides = () => slides.map((s, i) => ({ ...s, type: TYPES[i] }));
+
+// ---------------------------------------------------------------------------
+// Nastavení videa (hlas, tempo, hudba, titulky)
+// ---------------------------------------------------------------------------
+function loadOptions() {
+  let o = { ...DEFAULT_OPTIONS };
+  try { o = { ...o, ...JSON.parse(store.get(STORAGE.options)) }; } catch { /* ignore */ }
+  $('optVoice').value = o.voice;
+  $('optSpeed').value = String(o.speed);
+  $('optMusic').checked = !!o.music;
+  $('optCaptions').checked = !!o.captions;
+}
+
+function options() {
+  return {
+    voice: $('optVoice').value,
+    speed: Number($('optSpeed').value) || 1,
+    music: $('optMusic').checked,
+    captions: $('optCaptions').checked,
+  };
+}
+
+// ---------------------------------------------------------------------------
+// Animovaný náhled – stejná šablona jako při renderu (template.html v iframe)
+// ---------------------------------------------------------------------------
+let R = null;
+let previewTimer = null;
+let spokenScene = -1;
+
+function initPlayer() {
+  const iframe = $('player');
+  const ready = () => {
+    R = iframe.contentWindow && iframe.contentWindow.R;
+    if (!R) return;
+    R.onTime(onPlayerTime);
+    refreshPreview();
+  };
+  if (iframe.contentWindow && iframe.contentWindow.R) ready();
+  else iframe.addEventListener('load', ready, { once: true });
+
+  // zmenšení plátna 1080×1920 na šířku panelu
+  const fit = () => { iframe.style.transform = `scale(${$('stage').clientWidth / 1080})`; };
+  new ResizeObserver(fit).observe($('stage'));
+  fit();
+}
+
+async function refreshPreview() {
+  if (!R) return;
+  const wasPlaying = R.isPlaying();
+  const t = Number($('scrub').value) || 0;
+  const tl = R.estimateTimeline(typedSlides(), options());
+  await R.setup({ ...tl, captions: options().captions, debug: $('safeZones').checked });
+  $('scrub').max = tl.duration.toFixed(2);
+  updateEstimates(tl);
+  if (wasPlaying) R.play(Math.min(t, tl.duration));
+  else { R.seek(Math.min(t, tl.duration)); onPlayerTime(Math.min(t, tl.duration), false); }
+}
+
+function schedulePreview() {
+  clearTimeout(previewTimer);
+  previewTimer = setTimeout(refreshPreview, 300);
+}
+
+function updateEstimates(tl) {
+  const over = tl.duration > 20.05 || tl.tempo > 1.12;
+  $('estimate').innerHTML = `Odhadovaná délka videa <strong>${fmt(tl.duration)} s</strong>` +
+    (tl.tempo > 1.001 ? ` · voiceover se zrychlí ×${tl.tempo.toFixed(2).replace('.', ',')}` : '') +
+    (over ? ' – zkus voiceover zkrátit' : '');
+  $('estimate').classList.toggle('warn', over);
+  document.querySelectorAll('#slides .slide').forEach((card, i) => {
+    const sc = tl.scenes[i];
+    card.querySelector('.vo-est').textContent = `≈ ${fmt(sc.voiceDuration)} s řeči · scéna ${fmt(sc.duration)} s`;
+  });
+}
+
+function onPlayerTime(t, playing) {
+  $('scrub').value = String(t);
+  $('timeLabel').textContent = `${fmt(t)} / ${fmt(R ? R.duration : 0)} s`;
+  $('playBtn').textContent = playing ? '❚❚' : '▶';
+  $('playBtn').setAttribute('aria-label', playing ? 'Pozastavit' : 'Přehrát');
+
+  // orientační předčítání hlasem prohlížeče
+  if (!playing) { spokenScene = -1; return; }
+  if (!$('browserVoice').checked || !('speechSynthesis' in window)) return;
+  const tl = R.estimateTimeline(typedSlides(), options());
+  const i = tl.scenes.findIndex((s) => t >= s.voiceStart && t < s.voiceStart + 0.5);
+  if (i !== -1 && i !== spokenScene) {
+    spokenScene = i;
+    speechSynthesis.cancel();
+    const u = new SpeechSynthesisUtterance(R.voiceText(tl.scenes[i]));
+    u.lang = 'cs-CZ';
+    u.rate = options().speed * tl.tempo;
+    const cs = speechSynthesis.getVoices().find((v) => v.lang && v.lang.toLowerCase().startsWith('cs'));
+    if (cs) u.voice = cs;
+    speechSynthesis.speak(u);
+  }
+}
+
+function togglePlay() {
+  if (!R) return;
+  if (R.isPlaying()) {
+    R.pause();
+    if ('speechSynthesis' in window) speechSynthesis.cancel();
+  } else {
+    spokenScene = -1;
+    R.play(Number($('scrub').value) || 0);
+  }
+}
+
+function playScene(i) {
+  if (!R) return;
+  const tl = R.estimateTimeline(typedSlides(), options());
+  spokenScene = -1;
+  if ('speechSynthesis' in window) speechSynthesis.cancel();
+  R.play(tl.scenes[i].start);
+  $('player').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
 }
 
 // ---------------------------------------------------------------------------
 // Editor snímků
 // ---------------------------------------------------------------------------
-const previewTimers = [];
-
 function buildEditor() {
   const container = $('slides');
   container.innerHTML = '';
@@ -71,35 +166,24 @@ function buildEditor() {
 
   slides.forEach((slide, i) => {
     const node = tpl.content.firstElementChild.cloneNode(true);
-    node.querySelector('.slide-title').innerHTML =
-      `<span class="badge">${i + 1}</span> ${LABELS[i]}`;
+    node.querySelector('.slide-title').innerHTML = `<span class="badge">${i + 1}</span> ${LABELS[i]}`;
+    node.querySelector('.play-scene').addEventListener('click', () => playScene(i));
 
     node.querySelectorAll('[data-field]').forEach((input) => {
       const field = input.dataset.field;
       input.value = slide[field] || '';
+      if (field === 'voiceover') input.placeholder = `${plain(slide.heading)}. ${plain(slide.mainText)}`;
       input.addEventListener('input', () => {
         slides[i][field] = input.value;
         store.set(STORAGE.draft, JSON.stringify(slides));
         $('scenario').value = '';
-        schedulePreview(i);
+        schedulePreview();
       });
     });
 
     container.appendChild(node);
   });
-
-  slides.forEach((_, i) => updatePreview(i));
-}
-
-function updatePreview(i) {
-  if (!template) return;
-  const iframe = $('slides').children[i]?.querySelector('iframe');
-  if (iframe) iframe.srcdoc = renderTemplate(slides[i], i, $('safeZones').checked);
-}
-
-function schedulePreview(i) {
-  clearTimeout(previewTimers[i]);
-  previewTimers[i] = setTimeout(() => updatePreview(i), 250);
+  schedulePreview();
 }
 
 // ---------------------------------------------------------------------------
@@ -116,13 +200,13 @@ function detectRepo() {
 }
 
 function loadConnection() {
-  let conn = detectRepo();
+  let c = detectRepo();
   try {
     const saved = JSON.parse(store.get(STORAGE.conn));
-    if (saved?.owner && saved?.repo) conn = saved;
+    if (saved?.owner && saved?.repo) c = saved;
   } catch { /* ignore */ }
-  $('owner').value = conn.owner;
-  $('repo').value = conn.repo;
+  $('owner').value = c.owner;
+  $('repo').value = c.repo;
   const token = store.get(STORAGE.token);
   if (token) {
     $('token').value = token;
@@ -140,15 +224,15 @@ function conn() {
   return { owner: $('owner').value.trim(), repo: $('repo').value.trim(), token: $('token').value.trim() };
 }
 
-async function gh(path, options = {}) {
+async function gh(path, opts = {}) {
   const { token } = conn();
   const res = await fetch(`https://api.github.com${path}`, {
-    ...options,
+    ...opts,
     headers: {
       Accept: 'application/vnd.github+json',
       'X-GitHub-Api-Version': '2022-11-28',
       Authorization: `Bearer ${token}`,
-      ...(options.body ? { 'Content-Type': 'application/json' } : {}),
+      ...(opts.body ? { 'Content-Type': 'application/json' } : {}),
     },
   });
   if (!res.ok) {
@@ -158,7 +242,7 @@ async function gh(path, options = {}) {
       401: 'Token je neplatný nebo vypršel.',
       403: 'Token nemá oprávnění „Actions: Read and write“ pro tento repozitář.',
       404: 'Repozitář nebo workflow nenalezen – zkontroluj vlastníka, název repozitáře a přístup tokenu.',
-      422: 'GitHub odmítl požadavek – workflow na výchozí větvi možná nemá vstupy „slides“ a „request_id“.',
+      422: 'GitHub odmítl požadavek – workflow na výchozí větvi možná ještě nemá vstupy „slides“, „options“ a „request_id“.',
     };
     throw new Error(`${hints[res.status] || 'Chyba GitHub API.'} (${res.status}: ${msg})`);
   }
@@ -238,18 +322,19 @@ async function generate() {
   try {
     setStatus('Spouštím workflow…');
     const repoInfo = await gh(base);
-    const payload = slides.map(({ tag, heading, mainText, imageUrl }) => ({
-      tag: (tag || '').trim(),
-      heading: heading.trim(),
-      mainText: (mainText || '').trim(),
-      imageUrl: (imageUrl || '').trim(),
+    const payload = slides.map((s) => ({
+      tag: (s.tag || '').trim(),
+      heading: (s.heading || '').trim(),
+      mainText: (s.mainText || '').trim(),
+      voiceover: (s.voiceover || '').trim(),
+      imageUrl: (s.imageUrl || '').trim(),
     }));
 
     await gh(`${base}/actions/workflows/${WORKFLOW_FILE}/dispatches`, {
       method: 'POST',
       body: JSON.stringify({
         ref: repoInfo.default_branch,
-        inputs: { slides: JSON.stringify(payload), request_id: requestId },
+        inputs: { slides: JSON.stringify(payload), options: JSON.stringify(options()), request_id: requestId },
       }),
     });
 
@@ -295,7 +380,11 @@ async function generate() {
 const STEP_LABELS = {
   'Instalace FFmpeg a fontů': 'Instaluji FFmpeg…',
   'Instalace NPM závislostí': 'Instaluji závislosti…',
-  'Spuštění generátoru': 'Renderuji snímky a skládám video…',
+  'Nastavení Pythonu (hlas Piper)': 'Připravuji hlas…',
+  'Instalace Piper TTS': 'Připravuji hlas…',
+  'Mezipaměť hlasového modelu': 'Připravuji hlas…',
+  'Stažení českého hlasu': 'Připravuji hlas…',
+  'Spuštění generátoru': 'Namlouvám voiceover, renderuji animaci a míchám zvuk…',
   'Nahrání videa jako artefaktu': 'Ukládám video…',
   'Sestavení webu (aplikace + poslední video)': 'Připravuji web…',
   'Nahrání webu pro GitHub Pages': 'Připravuji web…',
@@ -317,6 +406,8 @@ async function currentStep(base, runId) {
 // ---------------------------------------------------------------------------
 // Přehrávač posledního videa
 // ---------------------------------------------------------------------------
+const VOICE_NAMES = { piper: 'Piper', elevenlabs: 'ElevenLabs', openai: 'OpenAI', none: 'bez hlasu' };
+
 async function loadLatest(expectedRequestId) {
   try {
     const res = await fetch(`latest.json?t=${Date.now()}`, { cache: 'no-store' });
@@ -324,16 +415,19 @@ async function loadLatest(expectedRequestId) {
     const meta = await res.json();
     if (expectedRequestId && meta.requestId !== expectedRequestId) return false;
 
-    const v = $('video');
-    const src = `videos/reels-output.mp4?v=${encodeURIComponent(meta.requestId || meta.generatedAt)}`;
-    v.src = src;
+    const v = encodeURIComponent(meta.requestId || meta.generatedAt);
+    const src = `videos/reels-output.mp4?v=${v}`;
+    $('video').src = src;
+    $('video').poster = `videos/cover.jpg?v=${v}`;
     $('downloadLink').href = src;
-    $('downloadLink').hidden = false;
+    $('coverLink').href = `videos/cover.jpg?v=${v}`;
+    $('srtLink').href = `videos/captions.srt?v=${v}`;
+    $('downloads').hidden = false;
     $('noVideo').hidden = true;
 
     const when = new Date(meta.generatedAt).toLocaleString('cs-CZ');
-    $('videoMeta').textContent =
-      `${meta.width}×${meta.height} · ${Number(meta.duration).toFixed(1)} s · vygenerováno ${when}`;
+    const voice = meta.voice ? ` · hlas: ${VOICE_NAMES[meta.voice] || meta.voice}` : '';
+    $('videoMeta').textContent = `${meta.width}×${meta.height} · ${fmt(Number(meta.duration))} s${voice} · ${when}`;
     return true;
   } catch {
     return false;
@@ -346,7 +440,7 @@ async function loadLatest(expectedRequestId) {
 function renderScenarios() {
   const sel = $('scenario');
   sel.innerHTML = '<option value="">— vlastní úpravy —</option>' +
-    PRESETS.scenarios.map((sc) => `<option value="${sc.id}">${sanitize(sc.name)}</option>`).join('');
+    PRESETS.scenarios.map((sc) => `<option value="${escapeHtml(sc.id)}">${escapeHtml(sc.name)}</option>`).join('');
   sel.value = store.get(STORAGE.draft) ? '' : PRESETS.scenarios[0].id;
 }
 
@@ -363,12 +457,12 @@ function renderProduct() {
   const p = PRESETS.product;
   if (!p) return;
   $('productName').textContent = p.name;
-  $('productClaim').innerHTML = sanitize(p.claim);
+  $('productClaim').innerHTML = richHtml(p.claim);
   $('productSubtitle').textContent = p.subtitle;
   $('productAudience').textContent = p.audience;
-  $('productFacts').innerHTML = p.facts.map((f) => `<li>${sanitize(f)}</li>`).join('');
+  $('productFacts').innerHTML = p.facts.map((f) => `<li>${escapeHtml(f)}</li>`).join('');
   $('productChapters').innerHTML = p.chapters
-    .map((c, i) => `<li><span>${String(i + 1).padStart(2, '0')}</span>${sanitize(c)}</li>`)
+    .map((c, i) => `<li><span>${String(i + 1).padStart(2, '0')}</span>${escapeHtml(c)}</li>`)
     .join('');
 }
 
@@ -377,10 +471,23 @@ function renderProduct() {
 // ---------------------------------------------------------------------------
 async function init() {
   loadConnection();
+  loadOptions();
 
   $('settingsBtn').addEventListener('click', () => openSettings($('settings').hidden));
   ['owner', 'repo', 'token', 'remember'].forEach((id) => $(id).addEventListener('change', saveConnection));
-  $('safeZones').addEventListener('change', () => slides.forEach((_, i) => updatePreview(i)));
+  ['optVoice', 'optSpeed', 'optMusic', 'optCaptions'].forEach((id) => $(id).addEventListener('change', () => {
+    store.set(STORAGE.options, JSON.stringify(options()));
+    schedulePreview();
+  }));
+  $('safeZones').addEventListener('change', refreshPreview);
+  $('playBtn').addEventListener('click', togglePlay);
+  $('scrub').addEventListener('input', () => {
+    if (!R) return;
+    if (R.isPlaying()) R.pause();
+    if ('speechSynthesis' in window) speechSynthesis.cancel();
+    R.seek(Number($('scrub').value));
+    onPlayerTime(Number($('scrub').value), false);
+  });
   $('scenario').addEventListener('change', () => loadScenario($('scenario').value));
   $('resetBtn').addEventListener('click', () => loadScenario($('scenario').value || PRESETS.scenarios[0].id));
   $('generateBtn').addEventListener('click', generate);
@@ -403,17 +510,15 @@ async function init() {
   if (!conn().token) openSettings(true);
 
   try {
-    const [tplRes, presetRes] = await Promise.all([fetch('template.html'), fetch('presets.json')]);
-    template = await tplRes.text();
-    PRESETS = await presetRes.json();
+    PRESETS = await (await fetch('presets.json')).json();
   } catch {
-    template = '<body style="background:#15213d;color:#fff;font:40px sans-serif;padding:60px">Šablona se nenačetla</body>';
-    PRESETS = { product: null, scenarios: [{ id: 'empty', name: 'Prázdný', slides: TYPES.map(() => ({ tag: '', heading: '', mainText: '', imageUrl: '' })) }] };
+    PRESETS = { product: null, scenarios: [{ id: 'empty', name: 'Prázdný', slides: TYPES.map(() => ({ tag: '', heading: '', mainText: '', voiceover: '', imageUrl: '' })) }] };
   }
   renderProduct();
   renderScenarios();
   slides = loadDraft();
   buildEditor();
+  initPlayer();
   loadLatest();
 }
 

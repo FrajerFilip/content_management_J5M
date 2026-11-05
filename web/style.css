@@ -102,7 +102,8 @@ select {
   align-items: start;
 }
 
-.side { display: grid; gap: 16px; position: sticky; top: 16px; }
+.side { display: grid; gap: 16px; }
+.side label.check.small { margin: 8px 0; }
 
 .panel {
   background: var(--panel);
@@ -170,7 +171,8 @@ input:focus, textarea:focus { outline: 2px solid var(--accent); outline-offset: 
 
 .slides { display: grid; gap: 16px; }
 
-.slide { display: grid; grid-template-columns: minmax(0, 1fr) 180px; gap: 18px; }
+.slide { display: block; }
+.slide-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
 .slide-form { display: grid; gap: 12px; align-content: start; }
 .slide-title { display: flex; align-items: center; gap: 8px; }
 .slide-title .badge {
@@ -182,23 +184,38 @@ input:focus, textarea:focus { outline: 2px solid var(--accent); outline-offset: 
   color: var(--accent-ink);
 }
 
-/* Náhled 1080x1920 zmenšený na 180x320 (scale 1/6) */
-.preview {
-  width: 180px;
-  height: 320px;
-  border-radius: 12px;
+/* Animovaný náhled: plátno 1080×1920 zmenšené na šířku panelu (scale nastaví app.js) */
+.panel-head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
+.panel-head h2 { margin-bottom: 12px; }
+.stage {
+  position: relative;
+  width: 100%;
+  max-width: 320px;
+  aspect-ratio: 9 / 16;
+  margin: 0 auto;
+  border-radius: 14px;
   overflow: hidden;
   background: var(--navy);
-  position: relative;
 }
-.preview iframe {
+.stage iframe {
+  position: absolute;
+  left: 0;
+  top: 0;
   width: 1080px;
   height: 1920px;
   border: 0;
-  transform: scale(0.16667);
   transform-origin: 0 0;
   pointer-events: none;
 }
+.controls { display: flex; align-items: center; gap: 10px; margin: 12px 0 6px; }
+.controls input[type='range'] { flex: 1; min-width: 0; accent-color: var(--accent); }
+.btn.play { width: 44px; padding: 6px 0; }
+.estimate { margin: 0 0 10px; }
+.estimate.warn { color: var(--err); }
+.opts { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin: 12px 0; }
+.opts select { width: 100%; }
+.downloads { display: grid; gap: 8px; }
+.downloads .row .btn { flex: 1; }
 
 .status { margin-top: 14px; display: grid; gap: 8px; }
 .status-line { display: flex; align-items: center; gap: 10px; font-weight: 600; }
