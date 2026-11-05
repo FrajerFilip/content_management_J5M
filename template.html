@@ -149,8 +149,22 @@
     }
     .main-text strong { color: var(--accent); font-weight: 700; }
 
-    /* Vizualizace bezpečných zón – zapnout přidáním třídy .debug na <body> */
-    body.debug .safe-zone { outline: 4px dashed #00ff9c; }
+    /* Vizualizace bezpečných zón – zapnout přidáním třídy „debug“ na element body */
+    body.debug .safe-zone {
+      outline: 10px dashed #00ff9c;
+      background: rgba(0, 255, 156, 0.08);
+    }
+    body.debug .canvas::after {
+      content: '';
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+      /* červeně = oblasti překryté UI aplikací */
+      box-shadow:
+        inset 0 var(--safe-top) 0 rgba(255, 40, 80, 0.28),
+        inset 0 calc(-1 * var(--safe-bottom)) 0 rgba(255, 40, 80, 0.28),
+        inset calc(-1 * var(--safe-right)) 0 0 rgba(255, 40, 80, 0.28);
+    }
   </style>
 </head>
 <body>

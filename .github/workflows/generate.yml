@@ -1,20 +1,44 @@
 name: Generate Reels / TikTok video
 
+# Název běhu obsahuje request_id, podle kterého si webová aplikace najde „svůj“ běh
+run-name: "Generate video ${{ inputs.request_id || github.event.client_payload.request_id || github.event_name }}"
+
 on:
-  # Ruční spuštění z GitHub UI (záložka Actions)
+  # Ruční spuštění z GitHub UI (záložka Actions) nebo z webové aplikace přes API:
+  #   POST /repos/<owner>/<repo>/actions/workflows/generate.yml/dispatches
+  #   body: {"ref": "<branch>", "inputs": {"slides": "<JSON>", "request_id": "abc"}}
   workflow_dispatch:
+    inputs:
+      slides:
+        description: "JSON pole 4 snímků [{heading, mainText, imageUrl}] – prázdné = testovací data"
+        required: false
+        default: ""
+      request_id:
+        description: "Identifikátor požadavku (vyplňuje webová aplikace)"
+        required: false
+        default: ""
 
   # Spuštění přes webhook / REST API:
-  #   POST https://api.github.com/repos/<owner>/<repo>/dispatches
-  #   body: {"event_type": "generate-video"}
+  #   POST /repos/<owner>/<repo>/dispatches
+  #   body: {"event_type": "generate-video", "client_payload": {"slides": [...], "request_id": "abc"}}
   repository_dispatch:
     types: [generate-video]
+
+  # Po změně webu / šablony / skriptu se web znovu nasadí (s ukázkovým videem)
+  push:
+    paths:
+      - "web/**"
+      - "template.html"
+      - "index.js"
+      - "package.json"
+      - "package-lock.json"
+      - ".github/workflows/generate.yml"
 
 permissions:
   contents: read
 
 concurrency:
-  group: generate-video-${{ github.ref }}
+  group: generate-video
   cancel-in-progress: false
 
 jobs:
@@ -41,6 +65,10 @@ jobs:
         run: npm install --no-audit --no-fund
 
       - name: Spuštění generátoru
+        env:
+          # Data jdou přes proměnné prostředí (ne přímo do shellu) – bezpečné vůči injekci
+          SLIDES_JSON: ${{ inputs.slides || toJson(github.event.client_payload.slides) }}
+          REQUEST_ID: ${{ inputs.request_id || github.event.client_payload.request_id }}
         run: node index.js
 
       - name: Nahrání videa jako artefaktu
@@ -50,3 +78,32 @@ jobs:
           path: output/
           if-no-files-found: error
           retention-days: 14
+
+      - name: Sestavení webu (aplikace + poslední video)
+        run: |
+          mkdir -p _site/videos
+          cp -r web/. _site/
+          cp template.html _site/template.html
+          cp output/reels-output.mp4 _site/videos/reels-output.mp4
+          cp output/latest.json _site/latest.json
+
+      - name: Nahrání webu pro GitHub Pages
+        if: github.ref_name == github.event.repository.default_branch
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+
+  deploy:
+    needs: generate
+    if: github.ref_name == github.event.repository.default_branch
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Nasazení na GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4

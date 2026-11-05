@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="cs">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Reels Studio</title>
+  <meta name="description" content="Generátor 18s informačních videí pro Instagram Reels a TikTok." />
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎬</text></svg>" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">
+      <span class="logo">🎬</span>
+      <div>
+        <h1>Reels Studio</h1>
+        <p>4 snímky → 18s video 1080×1920 pro Reels a TikTok</p>
+      </div>
+    </div>
+    <button id="settingsBtn" class="btn ghost" type="button" aria-controls="settings" aria-expanded="false">⚙️ Připojení</button>
+  </header>
+
+  <section id="settings" class="panel settings" hidden>
+    <h2>Připojení ke GitHubu</h2>
+    <p class="hint">
+      Video se generuje na GitHub Actions. Aplikace potřebuje <strong>fine-grained token</strong> s přístupem jen
+      k tomuto repozitáři a oprávněním <strong>Actions: Read and write</strong>.
+      <a href="https://github.com/settings/personal-access-tokens/new" target="_blank" rel="noopener">Vytvořit token →</a>
+    </p>
+    <div class="grid-3">
+      <label>Vlastník
+        <input id="owner" type="text" autocomplete="off" spellcheck="false" />
+      </label>
+      <label>Repozitář
+        <input id="repo" type="text" autocomplete="off" spellcheck="false" />
+      </label>
+      <label>Token
+        <input id="token" type="password" autocomplete="off" spellcheck="false" placeholder="github_pat_…" />
+      </label>
+    </div>
+    <label class="check">
+      <input id="remember" type="checkbox" />
+      Zapamatovat token v tomto prohlížeči
+    </label>
+    <div class="row">
+      <button id="testBtn" class="btn" type="button">Ověřit připojení</button>
+      <span id="testResult" class="muted"></span>
+    </div>
+  </section>
+
+  <main class="layout">
+    <section class="editor">
+      <div class="section-head">
+        <h2>Snímky</h2>
+        <div class="row">
+          <label class="check small"><input id="safeZones" type="checkbox" /> Zobrazit bezpečné zóny</label>
+          <button id="resetBtn" class="btn ghost small" type="button">Obnovit ukázku</button>
+        </div>
+      </div>
+      <div id="slides" class="slides"></div>
+    </section>
+
+    <aside class="side">
+      <section class="panel">
+        <h2>Generování</h2>
+        <p class="muted">Každý snímek se zobrazí 4,5 s · H.264 · yuv420p · 30 FPS</p>
+        <button id="generateBtn" class="btn primary block" type="button">▶ Vygenerovat video</button>
+        <div id="status" class="status" hidden>
+          <div class="status-line">
+            <span id="statusIcon" class="spinner" aria-hidden="true"></span>
+            <span id="statusText">Odesílám…</span>
+            <span id="statusTime" class="muted"></span>
+          </div>
+          <a id="runLink" href="#" target="_blank" rel="noopener" hidden>Zobrazit běh na GitHubu →</a>
+        </div>
+      </section>
+
+      <section class="panel">
+        <h2>Poslední video</h2>
+        <div class="player">
+          <video id="video" controls playsinline preload="metadata"></video>
+          <div id="noVideo" class="empty">Zatím tu není žádné video.</div>
+        </div>
+        <p id="videoMeta" class="muted small"></p>
+        <a id="downloadLink" class="btn block" href="videos/reels-output.mp4" download="reels-output.mp4" hidden>⬇ Stáhnout MP4</a>
+      </section>
+    </aside>
+  </main>
+
+  <template id="slideTpl">
+    <article class="slide panel">
+      <div class="slide-form">
+        <h3 class="slide-title"></h3>
+        <label>Nadpis
+          <input data-field="heading" type="text" maxlength="120" />
+        </label>
+        <label>Text <span class="muted small">(&lt;strong&gt; zvýrazní)</span>
+          <textarea data-field="mainText" rows="3" maxlength="400"></textarea>
+        </label>
+        <label>URL obrázku
+          <input data-field="imageUrl" type="url" placeholder="https://…" spellcheck="false" />
+        </label>
+      </div>
+      <div class="preview">
+        <iframe title="Náhled snímku" tabindex="-1" loading="lazy"></iframe>
+      </div>
+    </article>
+  </template>
+
+  <script src="app.js"></script>
+</body>
+</html>

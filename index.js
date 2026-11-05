@@ -33,7 +33,7 @@ if (process.env.FFMPEG_PATH) ffmpeg.setFfmpegPath(process.env.FFMPEG_PATH);
 // ---------------------------------------------------------------------------
 // Testovací data – 4 navazující snímky
 // ---------------------------------------------------------------------------
-const slides = [
+const DEFAULT_SLIDES = [
   {
     type: 'hook',
     heading: 'Pijete málo vody? 💧',
@@ -59,6 +59,49 @@ const slides = [
     imageUrl: 'https://images.unsplash.com/photo-1490645935967-10de6ba17061?w=1080&h=1920&fit=crop&q=80',
   },
 ];
+
+// ---------------------------------------------------------------------------
+// Načtení dat snímků
+//   - SLIDES_JSON (env) = JSON pole 4 snímků z webové aplikace / API
+//   - jinak se použijí testovací data výše
+// ---------------------------------------------------------------------------
+const SLIDE_TYPES = ['hook', 'info', 'info', 'cta'];
+const MAX_HEADING = 120;
+const MAX_TEXT = 400;
+
+function loadSlides() {
+  const raw = (process.env.SLIDES_JSON || '').trim();
+  if (!raw || raw === 'null' || raw === '""') {
+    console.log('ℹ️  SLIDES_JSON není zadán – používám testovací data.');
+    return DEFAULT_SLIDES;
+  }
+
+  let data;
+  try {
+    data = JSON.parse(raw);
+  } catch (err) {
+    throw new Error(`SLIDES_JSON není platný JSON: ${err.message}`);
+  }
+  if (!Array.isArray(data) || data.length !== SLIDE_TYPES.length) {
+    throw new Error(`SLIDES_JSON musí být pole s přesně ${SLIDE_TYPES.length} snímky.`);
+  }
+
+  return data.map((s, i) => {
+    const heading = String(s?.heading ?? '').trim();
+    const mainText = String(s?.mainText ?? '').trim();
+    const imageUrl = String(s?.imageUrl ?? '').trim();
+    if (!heading) throw new Error(`Snímek ${i + 1}: chybí nadpis.`);
+    if (heading.length > MAX_HEADING) throw new Error(`Snímek ${i + 1}: nadpis je delší než ${MAX_HEADING} znaků.`);
+    if (mainText.length > MAX_TEXT) throw new Error(`Snímek ${i + 1}: text je delší než ${MAX_TEXT} znaků.`);
+    return {
+      type: SLIDE_TYPES[i],
+      heading,
+      mainText,
+      // povoleny jen http(s) adresy, jinak se použije záložní pozadí šablony
+      imageUrl: /^https?:\/\//i.test(imageUrl) ? imageUrl : '',
+    };
+  });
+}
 
 // ---------------------------------------------------------------------------
 // Pomocné funkce
@@ -223,6 +266,7 @@ function probe(file) {
 (async () => {
   const started = Date.now();
   try {
+    const slides = loadSlides();
     prepareDir(TEMP_DIR, true);
     prepareDir(OUTPUT_DIR);
 
@@ -234,6 +278,19 @@ function probe(file) {
 
     const info = await probe(OUTPUT_FILE);
     const v = info.streams.find((s) => s.codec_type === 'video');
+
+    // Metadata pro webovou aplikaci (podle request_id pozná, že je nové video nasazené)
+    const { GITHUB_SERVER_URL, GITHUB_REPOSITORY, GITHUB_RUN_ID } = process.env;
+    const meta = {
+      requestId: process.env.REQUEST_ID || null,
+      generatedAt: new Date().toISOString(),
+      runUrl: GITHUB_RUN_ID ? `${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}` : null,
+      duration: Number(info.format.duration),
+      width: v.width,
+      height: v.height,
+      slides,
+    };
+    fs.writeFileSync(path.join(OUTPUT_DIR, 'latest.json'), JSON.stringify(meta, null, 2));
     console.log(
       `✅ Hotovo: ${path.relative(ROOT, OUTPUT_FILE)} | ${v.width}x${v.height} | ${v.codec_name} | ${v.pix_fmt} | ` +
         `${v.r_frame_rate} FPS | ${Number(info.format.duration).toFixed(2)} s | ` +
